@@ -141,18 +141,29 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     const periods=Array.from({length:5},(_,index)=>getMonthWeekStart(month,index+1));
     const trendMap=new Map<string,DmTrendPoint>();
     const setPoint=(week:string,name:string)=>{const key=`${week}\u0000${name}`;let point=trendMap.get(key);if(!point){point={week,dm:name,contents:0,videoViews:0,sales:0};trendMap.set(key,point)}return point};
-    const mondayOf=(date:string|Date)=>{const value=typeof date==="string"?new Date(`${date.slice(0,10)}T12:00:00Z`):new Date(date);value.setUTCDate(value.getUTCDate()-((value.getUTCDay()+6)%7));return value.toISOString().slice(0,10)};
+    const periodForDate=(date:string|Date)=>{const day=dateValue(date);if(day.slice(0,7)!==month)return null;const starts=periods.filter((period):period is string=>Boolean(period));return [...starts].reverse().find(start=>start<=day)??starts[0]??null};
     for(const period of periods)if(period)setPoint(period,"__all__");
-    for(const entry of dmEntries){const week=mondayOf(entry.activity_date),name=entry.dm_name??"Belum ditentukan";if(!periods.includes(week))continue;for(const bucket of [setPoint(week,name),setPoint(week,"__all__")]){bucket.contents+=Number(entry.contents);bucket.videoViews+=Number(entry.video_views);bucket.sales+=Number(entry.tiktok_sales)+Number(entry.shopee_sales)}}
+    for(const entry of dmEntries){const week=periodForDate(entry.activity_date),name=entry.dm_name??"Belum ditentukan";if(!week)continue;for(const bucket of [setPoint(week,name),setPoint(week,"__all__")]){bucket.contents+=Number(entry.contents);bucket.videoViews+=Number(entry.video_views);bucket.sales+=Number(entry.tiktok_sales)+Number(entry.shopee_sales)}}
     const trends=[...trendMap.values()].sort((a,b)=>a.week.localeCompare(b.week));
-    const weeklyData:Record<string,Record<string,{clients:number;contents:number;videoViews:number;tiktokSales:number;shopeeSales:number}>>={};
-    for(const period of periods)if(period)weeklyData[period]={};
-    for(const entry of dmEntries){const week=mondayOf(entry.activity_date),name=entry.dm_name??"Belum ditentukan";if(!weeklyData[week])continue;const item=weeklyData[week][name]??{clients:0,contents:0,videoViews:0,tiktokSales:0,shopeeSales:0};item.clients+=entry.client_name?1:0;item.contents+=Number(entry.contents);item.videoViews+=Number(entry.video_views);item.tiktokSales+=Number(entry.tiktok_sales);item.shopeeSales+=Number(entry.shopee_sales);weeklyData[week][name]=item;}
-    const clientSet=new Set<string>(),clientRows:{dm:string;name:string;type:string}[]=[],mix=new Map<string,number>();
-    for(const entry of dmEntries){if(!entry.client_name)continue;const name=entry.dm_name??"Belum ditentukan";if(selectedDm&&selectedDm!==name)continue;const type=clientTypeLabels[entry.client_type??""]??entry.client_type??"Belum diklasifikasi",key=`${name}\u0000${entry.client_name}\u0000${type}`;if(clientSet.has(key))continue;clientSet.add(key);clientRows.push({dm:name,name:entry.client_name,type});mix.set(type,(mix.get(type)??0)+1);}
+    const clientSet=new Set<string>(),mix=new Map<string,number>();
+    for(const entry of dmEntries){if(!entry.client_name)continue;const name=entry.dm_name??"Belum ditentukan";if(selectedDm&&selectedDm!==name)continue;const type=clientTypeLabels[entry.client_type??""]??entry.client_type??"Belum diklasifikasi",key=`${name}\u0000${entry.client_name}\u0000${type}`;if(clientSet.has(key))continue;clientSet.add(key);mix.set(type,(mix.get(type)??0)+1);}
     const palette=["#d2fb07","#80b948","#46a68a","#c2d976","#7d876c","#d2aa58"];
     const clientSlices=[...mix].map(([label,count],index)=>({label,count,color:palette[index%palette.length]})).sort((a,b)=>b.count-a.count);
-    return <div className="admin-page admin-theme-dashboard"><AdminNavigation active="kpi" teamActive="dm-overview"/><main className="admin-main admin-section-main"><AdminTopbar section="Tim" page="Overview DM"/><div className="admin-shell team-kpi-shell dae-kpi-shell"><section className="admin-heading"><div><span className="eyebrow">WORKSPACE / DM</span><h1>Overview DM</h1><p>Pantau performa konten, views video, dan omset tim DM.</p></div><div className="team-kpi-tabs"><Link className="active" href="/admin/kpi?scope=dm">DM</Link><Link href="/admin/kpi?scope=dae">DAE</Link></div></section><DmKpiOverview month={month} rows={rows} trends={trends} selectedDm={selectedDm} periods={periods} weeklyData={weeklyData} clients={clientRows} slices={clientSlices}/></div></main></div>;
+    type ClientPerformance={dm:string;name:string;type:string;contents:number;videoViews:number;tiktokSales:number;shopeeSales:number};
+    type ClientWeek={contents:number;videoViews:number;tiktokSales:number;shopeeSales:number};
+    const performanceMap=new Map<string,ClientPerformance>();
+    const clientWeekly:Record<string,Record<string,ClientWeek>>={};
+    for(const entry of dmEntries){if(!entry.client_name)continue;const name=entry.dm_name??"Belum ditentukan";if(selectedDm&&name!==selectedDm)continue;
+      const type=clientTypeLabels[entry.client_type??""]??entry.client_type??"Belum diklasifikasi",key=`${name}\u0000${entry.client_name}\u0000${type}`;
+      const total=performanceMap.get(key)??{dm:name,name:entry.client_name,type,contents:0,videoViews:0,tiktokSales:0,shopeeSales:0};
+      total.contents+=Number(entry.contents);total.videoViews+=Number(entry.video_views);total.tiktokSales+=Number(entry.tiktok_sales);total.shopeeSales+=Number(entry.shopee_sales);performanceMap.set(key,total);
+      const week=periodForDate(entry.activity_date);if(!week)continue;
+      const byWeek=clientWeekly[key]??{};const value=byWeek[week]??{contents:0,videoViews:0,tiktokSales:0,shopeeSales:0};
+      value.contents+=Number(entry.contents);value.videoViews+=Number(entry.video_views);value.tiktokSales+=Number(entry.tiktok_sales);value.shopeeSales+=Number(entry.shopee_sales);byWeek[week]=value;clientWeekly[key]=byWeek;
+    }
+    const performanceRows=[...performanceMap.values()].sort((a,b)=>b.videoViews-a.videoViews||a.name.localeCompare(b.name,"id"));
+    const weeklyClientRows=performanceRows.map(item=>({key:`${item.dm}\u0000${item.name}\u0000${item.type}`,dm:item.dm,name:item.name,type:item.type,weeks:clientWeekly[`${item.dm}\u0000${item.name}\u0000${item.type}`]??{}}));
+    return <div className="admin-page admin-theme-dashboard"><AdminNavigation active="kpi" teamActive="dm-overview"/><main className="admin-main admin-section-main"><AdminTopbar section="Tim" page="Overview DM"/><div className="admin-shell team-kpi-shell dae-kpi-shell"><section className="admin-heading"><div><span className="eyebrow">WORKSPACE / DM</span><h1>Overview DM</h1><p>Pantau performa konten, views video, dan omset tim DM.</p></div><div className="team-kpi-tabs"><Link className="active" href="/admin/kpi?scope=dm">DM</Link><Link href="/admin/kpi?scope=dae">DAE</Link></div></section><DmKpiOverview month={month} rows={rows} trends={trends} selectedDm={selectedDm} periods={periods} performanceRows={performanceRows} weeklyClientRows={weeklyClientRows} slices={clientSlices}/></div></main></div>;
   }
   const outputScope: string = scope;
   return <div className="admin-page admin-theme-dashboard"><AdminNavigation active="kpi" teamActive={outputScope==="dm"?"dm-overview":"dae-overview"}/><main className="admin-main admin-section-main"><AdminTopbar section="Tim" page="KPI & aktivitas"/><div className="admin-shell team-kpi-shell">
