@@ -92,6 +92,5 @@ try {
     process.exitCode = 1;
   }
 } finally {
-  await db.end();
+  await db.$disconnect();
 }
-finally { await db.$disconnect(); }
