@@ -8,16 +8,17 @@ import { deleteDaeWeeklyReport } from "./actions";
 import { getDb } from "@/lib/db";
 import { verifyAdminAnyScope, verifyAdminSession } from "@/lib/admin-auth";
 import { getMonthWeekStart } from "@/lib/dae-weeks";
+import { isExistingAgencyClientType } from "@/lib/client-types";
 
 export const metadata = { title: "Data Per DAE | Solusi Sejalan" };
 type Assignment = RowDataPacket & { dae_person: string; week_start: string | Date; agency_client_ids: unknown };
-type AgencyClient = RowDataPacket & { id: number };
+type AgencyClient = RowDataPacket & { id: number; client_type: string };
 type CountRow = RowDataPacket & { dae_person: string; week_start: string | Date; total: number };
 type Report = RowDataPacket & { id: number; dae_person: string; week_start: string | Date; client_retention_count: number; strategy_idea_count: number; visit_count: number; achievement_client_count: number; achievement_rank: number; team_coordination: string | null; daily_report: string | null };
 const path = "/admin/kpi/input/dae_individual";
 const dateValue = (value: string | Date) => typeof value === "string" ? value.slice(0, 10) : new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(value);
 const keyOf = (person: string, week: string) => `${person}\u0000${week}`;
-function readIds(value: unknown): number[] { try { const parsed = typeof value === "string" ? JSON.parse(value) : value; return Array.isArray(parsed) ? parsed.map(Number).filter(id => Number.isSafeInteger(id) && id > 0) : []; } catch { return []; } }
+function readIds(value: unknown): number[] { try { const source = value instanceof Uint8Array ? new TextDecoder().decode(value) : value; const parsed = typeof source === "string" ? JSON.parse(source) : source; return Array.isArray(parsed) ? parsed.map(Number).filter(id => Number.isSafeInteger(id) && id > 0) : []; } catch { return []; } }
 
 export default async function DaeIndividualPage({ searchParams }: { searchParams: Promise<{ new?: string; edit?: string; saved?: string; deleted?: string; error?: string }> }) {
   if (!(await verifyAdminSession())) redirect("/admin/login");
@@ -29,9 +30,9 @@ export default async function DaeIndividualPage({ searchParams }: { searchParams
     getDb().execute<CountRow[]>("SELECT dae_person,week_start,COUNT(*) AS total FROM dae_strategy_details GROUP BY dae_person,week_start"),
     getDb().execute<CountRow[]>("SELECT dae_person,week_start,SUM(visit_count) AS total FROM dae_visit_details GROUP BY dae_person,week_start"),
     getDb().execute<Report[]>("SELECT id,dae_person,week_start,client_retention_count,strategy_idea_count,visit_count,achievement_client_count,achievement_rank,team_coordination,daily_report FROM dae_weekly_reports ORDER BY week_start DESC,dae_person"),
-    getDb().execute<AgencyClient[]>("SELECT id FROM agency_clients WHERE client_type='existing'"),
+    getDb().execute<AgencyClient[]>("SELECT id,client_type FROM agency_clients"),
   ]);
-  const existingClientIds = new Set(existingClients[0].map(client => Number(client.id)));
+  const existingClientIds = new Set(existingClients[0].filter(client => isExistingAgencyClientType(client.client_type)).map(client => Number(client.id)));
   const clientCounts = new Map<string, Set<number>>();
   for (const row of assignments[0]) {
     const bucket = clientCounts.get(row.dae_person) ?? new Set<number>();

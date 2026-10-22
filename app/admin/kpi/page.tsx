@@ -6,6 +6,7 @@ import AdminTopbar from "@/components/admin-topbar";
 import { getAdminSessionUser, verifyAdminSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import { getMonthWeekStart } from "@/lib/dae-weeks";
+import { isExistingAgencyClientType } from "@/lib/client-types";
 import { deleteTeamEntry, saveKpiTarget } from "./actions";
 import DaeKpiOverview, { type DaeClientRow, type DaeOverviewRow, type DaeTrendPoint, type DaeTypeSlice, type DaeWeeklyData } from "@/components/dae-kpi-overview";
 import DmKpiOverview, { type DmOverviewRow, type DmTrendPoint } from "@/components/dm-kpi-overview";
@@ -26,7 +27,7 @@ const format = (value: number|string, metric: string) => metric.includes("sales"
 const clientTypeLabels: Record<string,string> = { existing:"Client Existing",prospect:"Calon Client",ex_client:"Ex Client",community:"Community",media:"Media",institution:"Instansi",agency_ph:"Agency / PH",etc:"Etc." };
 const typeLabels: Record<string,string> = { dm_client:"Data client DM", dae_individual:"Data individu DAE", dae_team:"Data tim DAE", dae_strategy:"Strategi DAE", dae_visit:"Kunjungan DAE", dae_client:"Data client DAE" };
 const dateValue=(value:string|Date)=>typeof value==="string"?value.slice(0,10):new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(value);
-function readIds(value:unknown):number[]{try{const parsed=typeof value==="string"?JSON.parse(value):value;return Array.isArray(parsed)?[...new Set(parsed.map(Number).filter(id=>Number.isSafeInteger(id)&&id>0))]:[]}catch{return[]}}
+function readIds(value:unknown):number[]{try{const source=value instanceof Uint8Array?new TextDecoder().decode(value):value;const parsed=typeof source==="string"?JSON.parse(source):source;return Array.isArray(parsed)?[...new Set(parsed.map(Number).filter(id=>Number.isSafeInteger(id)&&id>0))]:[]}catch{return[]}}
 const isDaeScope=(value:string)=>value==="dae";
 
 export default async function KpiDashboard({ searchParams }: { searchParams: Promise<{ scope?: string; week?:string; dae?:string; dm?:string; month?:string; saved?: string; error?: string }> }) {
@@ -82,7 +83,7 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
       reportQuery
     ]);
     const clientMap=new Map(clientRows.map(client=>[Number(client.id),client]));
-    const existingClientIds=new Set(clientRows.filter(client=>client.client_type==="existing").map(client=>Number(client.id)));
+    const existingClientIds=new Set(clientRows.filter(client=>isExistingAgencyClientType(client.client_type)).map(client=>Number(client.id)));
     const assignmentsByDae=new Map<string,Set<number>>();
     for(const assignment of assignmentRows){const ids=assignmentsByDae.get(assignment.dae_person)??new Set<number>();readIds(assignment.agency_client_ids).forEach(id=>ids.add(id));assignmentsByDae.set(assignment.dae_person,ids)}
     const strategyMap=new Map(strategyWeekRows.map(row=>[row.dae_person??"",Number(row.total)])),visitMap=new Map(visitWeekRows.map(row=>[row.dae_person??"",Number(row.total)]));

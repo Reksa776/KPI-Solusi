@@ -6,11 +6,12 @@ import type { RowDataPacket } from "@/lib/db-types";
 import { getAdminSessionUser, verifyAdminAnyScope } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import { monthWeekFromStart } from "@/lib/dae-weeks";
+import { isExistingAgencyClientType } from "@/lib/client-types";
 
 const path = "/admin/kpi/input/dae_individual";
 type Assignment = RowDataPacket & { dae_person: string; agency_client_ids: unknown };
 function readIds(value: unknown): number[] {
-  try { const parsed = typeof value === "string" ? JSON.parse(value) : value; return Array.isArray(parsed) ? [...new Set(parsed.map(Number).filter(id => Number.isSafeInteger(id) && id > 0))] : []; }
+  try { const source = value instanceof Uint8Array ? new TextDecoder().decode(value) : value; const parsed = typeof source === "string" ? JSON.parse(source) : source; return Array.isArray(parsed) ? [...new Set(parsed.map(Number).filter(id => Number.isSafeInteger(id) && id > 0))] : []; }
   catch { return []; }
 }
 function validWeek(value: string) {
@@ -31,8 +32,8 @@ export async function saveDaeWeeklyReport(form: FormData) {
   const db = getDb();
   const [assignments] = await db.execute<Assignment[]>("SELECT dae_person,agency_client_ids FROM team_activity_entries WHERE entry_type='dae_team' AND dae_person=? ORDER BY updated_at DESC,id DESC LIMIT 1", [person]);
   if (!assignments.length) redirect(`${path}?${id ? `edit=${id}` : "new=1"}&error=person`);
-  const [existingRows] = await db.execute<(RowDataPacket & { id: number })[]>("SELECT id FROM agency_clients WHERE client_type='existing'");
-  const existingClientIds = new Set(existingRows.map(row => Number(row.id)));
+  const [existingRows] = await db.execute<(RowDataPacket & { id: number; client_type: string })[]>("SELECT id,client_type FROM agency_clients");
+  const existingClientIds = new Set(existingRows.filter(row => isExistingAgencyClientType(row.client_type)).map(row => Number(row.id)));
   const clients = new Set(assignments.flatMap(row => readIds(row.agency_client_ids)).filter(clientId => existingClientIds.has(clientId)));
   const [strategies] = await db.execute<(RowDataPacket & { total: number })[]>("SELECT COUNT(*) AS total FROM dae_strategy_details WHERE dae_person=? AND week_start=?", [person, week]);
   const [visits] = await db.execute<(RowDataPacket & { total: number })[]>("SELECT COALESCE(SUM(visit_count),0) AS total FROM dae_visit_details WHERE dae_person=? AND week_start=?", [person, week]);

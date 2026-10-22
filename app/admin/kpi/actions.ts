@@ -74,7 +74,7 @@ export async function saveTeamEntry(form: FormData) {
     if (clients.length !== selectedClientIds.length) redirect(`/admin/kpi/input/${type}?error=client`);
     client = clients.map(row => row.client_name).join(", ").slice(0, 160);
     clientType = clients.length === 1 ? clients[0].client_type : null;
-    clientIdsJson = JSON.stringify(clients.map(row => row.id));
+    clientIdsJson = JSON.stringify(clients.map(row => Number(row.id)));
   }
   const values = [scope, type, title, client, date, weekValue, ...numbers, notes || null, type === "dae_team" || type === "dm_client" ? null : assignee, type === "dm_client" ? dmMemberId : null, dmPerson, daePerson, clientType, agencyClientId, clientIdsJson];
   if (id) {

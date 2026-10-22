@@ -29,6 +29,14 @@ export default async function AdminDashboard(){
   const today=new Intl.DateTimeFormat("id-ID",{day:"numeric",month:"short",year:"numeric"}).format(new Date()),s=summary[0];
   const canDM=user?.role==="superadmin"||user?.admin_scope==="dm"||user?.admin_scope==="both",canDAE=user?.role==="superadmin"||user?.admin_scope==="dae"||user?.admin_scope==="both";
   const dm=dms.find(row=>count(row.contents)>0||count(row.video_views)>0||count(row.tiktok_sales)+count(row.shopee_sales)>0),dae=daes.find(row=>count(row.secondary)>0||count(row.contents)>0),client=clients.find(row=>count(row.contents)>0||count(row.tiktok_sales)+count(row.shopee_sales)>0);
+  const serializableScores = (rows: Score[]) => rows.map(row => ({
+    full_name: row.full_name,
+    contents: count(row.contents),
+    video_views: count(row.video_views),
+    tiktok_sales: count(row.tiktok_sales),
+    shopee_sales: count(row.shopee_sales),
+    secondary: count(row.secondary),
+  }));
   return <div className="admin-page admin-theme-dashboard"><AdminNavigation active="dashboard" teamActive="overview"/><main className={"admin-main admin-dashboard-main dashboard-v2 scope-"+(canDM&&canDAE?"both":canDM?"dm":"dae")}><AdminTopbar section="Overview" page="DM · DAE · Client"/><div className="dashboard-content dashboard-v2-content">
     <section className="dashboard-v2-heading"><div><span className="dashboard-kicker">SOLUSI SEJALAN / PERFORMANCE</span><h1>Analytics overview</h1><p>Performa tim marketing, account executive, dan client.</p></div><div className="dashboard-date"><span>DATA DIPERBARUI</span><b>{today}</b></div></section>
     <section className="dashboard-v2-metrics performer-metrics" aria-label="Performa terbaik">
@@ -37,6 +45,6 @@ export default async function AdminDashboard(){
       <article className="dashboard-v2-metric"><div><span>Client terbaik</span><i>CLIENT</i></div><strong className="performer-name">{client?.client_name??"Belum ada data"}</strong><small>{client?count(client.contents)+" konten · "+money(count(client.tiktok_sales)+count(client.shopee_sales))+" omset tercatat":"Omset client muncul setelah laporan penjualan dicatat."}</small><span className="metric-accent"/></article>
     </section>
     <section className="dashboard-v2-panel dashboard-v2-chart-panel"><div className="dashboard-v2-panel-heading"><div><span className="dashboard-kicker">30 HARI TERAKHIR</span><h2>Performa DM, DAE, dan client</h2><p>Setiap baris memakai skala sendiri agar jumlah konten, konversi, dan omset mudah dibaca.</p></div><Link href="/admin/analytics">Analytics lengkap <span>↗</span></Link></div><DashboardPerformanceChart points={Array.from({length:30},(_,i)=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-(29-i));const day=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");return{day,dmContent:Number(dmDaily.find(r=>r.day===day)?.total??0),daeConversions:Number(daeDaily.find(r=>r.day===day)?.total??0),clientRevenue:Number(clientDaily.find(r=>r.day===day)?.total??0)}})}/></section>
-    <DashboardPerformanceTable dm={dms.map(row=>({...row,full_name:row.full_name}))} dae={daes.map(row=>({...row,full_name:row.full_name}))} clients={clients.map(row=>({...row,full_name:row.full_name}))}/><p className="dashboard-v2-note">Data performa dan omset dicatat manual berdasarkan laporan konten. Verifikasi angka di platform sebelum digunakan sebagai laporan final.</p>
+    <DashboardPerformanceTable dm={serializableScores(dms)} dae={serializableScores(daes)} clients={serializableScores(clients)}/><p className="dashboard-v2-note">Data performa dan omset dicatat manual berdasarkan laporan konten. Verifikasi angka di platform sebelum digunakan sebagai laporan final.</p>
   </div></main></div>
 }
