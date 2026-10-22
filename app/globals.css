@@ -90,10 +90,12 @@
 .admin-brand .brand-mark.brand-image{width:37px;height:37px;background:transparent!important;color:#26321d}
 .login-aside .brand-mark.brand-image{background:transparent!important;color:var(--lime)}
 .branding-preview img,.branding-preview>b,.favicon-preview img,.favicon-preview>b{background:transparent;color:#526b37;border-radius:0;box-shadow:none}
-.mobile-navigation{display:none}
+.nav-login{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 15px;border:1px solid rgba(48,72,45,.16);border-radius:999px;color:#30482d;font-size:12px;font-weight:700;white-space:nowrap;transition:background .2s,border-color .2s,transform .2s}.nav-login:hover{transform:translateY(-1px);border-color:rgba(48,72,45,.3);background:rgba(255,255,255,.7)}.nav-login-mobile{display:none}.mobile-navigation{display:none}
 @media(max-width:620px){
   .navlinks-desktop{display:none}
-  .mobile-navigation{position:relative;z-index:15;display:block;margin-left:auto}
+  .nav-login-desktop,.nav-cta{display:none}
+  .nav-login-mobile{display:inline-flex;min-height:40px;padding-inline:13px;margin-left:auto}
+  .mobile-navigation{position:relative;z-index:15;display:block;margin-left:0}
   .mobile-navigation summary{display:grid;width:46px;height:46px;place-items:center;border:1px solid rgba(48,72,45,.12);border-radius:50%;background:rgba(255,255,255,.72);list-style:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none}
   .mobile-navigation summary::-webkit-details-marker{display:none}
   .mobile-navigation summary span{display:grid;width:24px;height:24px;place-items:center;color:#30482d}

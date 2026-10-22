@@ -33,12 +33,15 @@ export default function SiteHeader({ settings }: { settings: ApplicationSettings
             <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined}>{label}</Link>
           ))}
         </div>
+        <Link className="nav-login nav-login-desktop" href="/admin/login">Masuk</Link>
         <a className="button nav-cta" href={settings.cta_url} target={isExternal(settings.cta_url) ? "_blank" : undefined} rel={isExternal(settings.cta_url) ? "noreferrer" : undefined}>{settings.cta_label} <span aria-hidden="true">↗</span></a>
+        <Link className="nav-login nav-login-mobile" href="/admin/login">Masuk</Link>
         <details className="mobile-navigation">
           <summary aria-label="Buka atau tutup navigasi"><span aria-hidden="true" /></summary>
           <div className="mobile-nav-panel">
             {navItems.map(([label, href]) => <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined} onClick={closeMobileMenu}>{label}</Link>)}
             <a className="button" href={settings.cta_url} target={isExternal(settings.cta_url) ? "_blank" : undefined} rel={isExternal(settings.cta_url) ? "noreferrer" : undefined} onClick={closeMobileMenu}>{settings.cta_label} <span aria-hidden="true">↗</span></a>
+            <Link href="/admin/login" onClick={closeMobileMenu}>Masuk ke akun</Link>
           </div>
         </details>
       </nav>
