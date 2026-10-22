@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "@/lib/db-types";
 import { getDb } from "@/lib/db";
 
 type Bucket = RowDataPacket & { failure_count: number; locked_until: Date | string | null };

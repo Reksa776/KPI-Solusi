@@ -1,4 +1,4 @@
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "@/lib/db-types";
 import { getDb } from "@/lib/db";
 
 export type LeadNotice = { id: number; contact_name: string; company_name: string; email: string; phone: string; campaign_goal: string };
@@ -15,23 +15,16 @@ export async function queueLeadNotifications(lead: LeadNotice) {
 
 export async function processLeadNotificationQueue(limit = 10) {
   const db = getDb();
-  const conn = await db.getConnection();
-  const claimed: Job[] = [];
-  try {
-    await conn.beginTransaction();
-    await conn.execute("UPDATE notification_outbox SET status='pending',processing_at=NULL WHERE status='processing' AND processing_at < NOW() - INTERVAL 10 MINUTE");
-    const [jobs] = await conn.query<Job[]>("SELECT id,channel,payload,attempts FROM notification_outbox WHERE status='pending' AND available_at<=NOW() ORDER BY id LIMIT ? FOR UPDATE SKIP LOCKED", [Math.min(Math.max(limit, 1), 25)]);
+  const claimed = await db.transaction(async tx => {
+    const batch: Job[] = [];
+    await tx.execute("UPDATE notification_outbox SET status='pending',processing_at=NULL WHERE status='processing' AND processing_at < NOW() - INTERVAL 10 MINUTE");
+    const [jobs] = await tx.query<Job[]>("SELECT id,channel,payload,attempts FROM notification_outbox WHERE status='pending' AND available_at<=NOW() ORDER BY id LIMIT ? FOR UPDATE SKIP LOCKED", [Math.min(Math.max(limit, 1), 25)]);
     for (const job of jobs) {
-      await conn.execute("UPDATE notification_outbox SET status='processing',processing_at=NOW(),attempts=attempts+1 WHERE id=?", [job.id]);
-      claimed.push({ ...job, attempts: Number(job.attempts) + 1 });
+      await tx.execute("UPDATE notification_outbox SET status='processing',processing_at=NOW(),attempts=attempts+1 WHERE id=?", [job.id]);
+      batch.push({ ...job, attempts: Number(job.attempts) + 1 });
     }
-    await conn.commit();
-  } catch (error) {
-    await conn.rollback();
-    throw error;
-  } finally {
-    conn.release();
-  }
+    return batch;
+  });
 
   let sent = 0;
   let failed = 0;

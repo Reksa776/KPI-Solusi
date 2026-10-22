@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "@/lib/db-types";
 import { verifyAdminScope, verifyAdminAnyScope, verifyAdminSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import type { LeadActivity, LeadAssignee } from "@/lib/lead-types";

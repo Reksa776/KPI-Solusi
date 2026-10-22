@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "@/lib/db-types";
 import { verifyAdminScope, verifyAdminAnyScope, verifyAdminSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import AdminNavigation from "@/components/admin-navigation";

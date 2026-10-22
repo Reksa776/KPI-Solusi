@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { isIP } from "node:net";
-import type { ResultSetHeader } from "mysql2";
+import type { ResultSetHeader } from "@/lib/db-types";
 import { getDb } from "@/lib/db";
 import { authenticateUser, clearAdminSession, createAdminSession, createPortalSession, getAdminSessionUser, verifyAdminSession, verifyOwnerSession, verifyAdminScope } from "@/lib/admin-auth";
 import { clearLoginFailures, isLoginLocked, loginBucketKey, recordLoginFailure } from "@/lib/login-rate-limit";
@@ -58,7 +58,7 @@ export async function changeOwnPasswordAction(formData: FormData) {
   const confirmation = String(formData.get("confirm_password") ?? "");
   if (password.length !== 8 || password !== confirmation) redirect("/admin/keamanan?error=invalid");
   const db = getDb();
-  const [[row]] = await db.execute<(import("mysql2").RowDataPacket & { password_hash: string })[]>("SELECT password_hash FROM users WHERE id=?", [user.id]);
+  const [[row]] = await db.execute<(import("@/lib/db-types").RowDataPacket & { password_hash: string })[]>("SELECT password_hash FROM users WHERE id=?", [user.id]);
   const [scheme, salt, expected] = row?.password_hash.split("$") ?? [];
   if (scheme !== "scrypt" || !salt || !expected) redirect("/admin/keamanan?error=current");
   const { scrypt: scryptCallback, randomBytes, timingSafeEqual } = await import("node:crypto");

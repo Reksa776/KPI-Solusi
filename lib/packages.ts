@@ -1,4 +1,4 @@
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "@/lib/db-types";
 import { getDb } from "@/lib/db";
 import { defaultPackages, type PackageItem } from "@/lib/package-data";
 

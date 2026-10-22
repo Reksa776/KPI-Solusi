@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "@/lib/db-types";
 import { getAdminSessionUser, verifyAdminAnyScope } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import { monthWeekFromStart } from "@/lib/dae-weeks";
@@ -35,16 +35,11 @@ export async function saveDaeVisits(form: FormData) {
     const [oldRows] = await db.execute<(RowDataPacket & { dae_person: string })[]>("SELECT dae_person FROM team_activity_entries WHERE entry_type='dae_team' AND dae_person=? LIMIT 1", [replacePerson]);
     if (!oldRows.length) redirect(`${path}?error=person`);
   }
-  const user = await getAdminSessionUser(), connection = await db.getConnection();
-  try {
-    await connection.beginTransaction();
-    if (replacePerson) await connection.execute("DELETE FROM dae_visit_details WHERE dae_person=? AND week_start=?", [replacePerson,replaceWeekStart]);
-    for (let index = 0; index < clientIds.length; index++) await connection.execute("INSERT INTO dae_visit_details (dae_person,week_start,agency_client_id,visit_count,created_by) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE visit_count=VALUES(visit_count),created_by=VALUES(created_by)", [person,weekStart,clientIds[index],visitCounts[index],user?.id ?? null]);
-    await connection.commit();
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally { connection.release(); }
+  const user = await getAdminSessionUser();
+  await db.transaction(async tx => {
+    if (replacePerson) await tx.execute("DELETE FROM dae_visit_details WHERE dae_person=? AND week_start=?", [replacePerson,replaceWeekStart]);
+    for (let index = 0; index < clientIds.length; index++) await tx.execute("INSERT INTO dae_visit_details (dae_person,week_start,agency_client_id,visit_count,created_by) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE visit_count=VALUES(visit_count),created_by=VALUES(created_by)", [person,weekStart,clientIds[index],visitCounts[index],user?.id ?? null]);
+  });
   revalidatePath(path);
   revalidatePath("/admin/kpi");
   redirect(`${path}?saved=1`);

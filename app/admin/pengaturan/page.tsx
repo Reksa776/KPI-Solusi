@@ -9,7 +9,7 @@ import { getApplicationSettings } from "@/lib/application-settings";
 import { saveApplicationSettingsAction } from "@/app/admin/actions";
 import { retryFailedNotificationsAction } from "@/app/admin/actions";
 import { getDb } from "@/lib/db";
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "@/lib/db-types";
 
 export const metadata: Metadata = { title: "Pengaturan identitas" };
 

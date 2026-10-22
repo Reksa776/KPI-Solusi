@@ -1,0 +1,108 @@
+-- Ported from database/migrations/002_marketing_workflow.sql.
+CREATE TABLE IF NOT EXISTS leads (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  contact_name VARCHAR(160) NOT NULL,
+  company_name VARCHAR(160) NOT NULL,
+  email VARCHAR(191) NOT NULL,
+  phone VARCHAR(40) NOT NULL,
+  website_or_social VARCHAR(255) NULL,
+  campaign_goal TEXT NOT NULL,
+  target_audience VARCHAR(255) NOT NULL,
+  preferred_channels VARCHAR(255) NOT NULL,
+  budget_min BIGINT UNSIGNED NULL,
+  budget_max BIGINT UNSIGNED NULL,
+  target_date DATE NULL,
+  status ENUM('new','reviewing','proposal','converted','closed') NOT NULL DEFAULT 'new',
+  privacy_accepted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY leads_status_created (status, created_at),
+  KEY leads_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS campaigns (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  lead_id BIGINT UNSIGNED NULL,
+  client_user_id INT UNSIGNED NULL,
+  title VARCHAR(180) NOT NULL,
+  client_name VARCHAR(160) NOT NULL,
+  client_email VARCHAR(191) NOT NULL,
+  objective TEXT NOT NULL,
+  status ENUM('planning','active','paused','completed','cancelled') NOT NULL DEFAULT 'planning',
+  start_date DATE NULL,
+  end_date DATE NULL,
+  budget BIGINT UNSIGNED NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY campaigns_lead_unique (lead_id),
+  KEY campaigns_status_dates (status, start_date, end_date),
+  KEY campaigns_client_email (client_email),
+  CONSTRAINT campaigns_lead_fk FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE SET NULL,
+  CONSTRAINT campaigns_client_user_fk FOREIGN KEY (client_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS partners (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NULL,
+  display_name VARCHAR(160) NOT NULL,
+  partner_type ENUM('creator','community','publisher','other') NOT NULL DEFAULT 'creator',
+  platform VARCHAR(80) NOT NULL,
+  handle VARCHAR(191) NULL,
+  profile_url VARCHAR(255) NULL,
+  niche VARCHAR(255) NOT NULL,
+  audience_size INT UNSIGNED NULL,
+  rate BIGINT UNSIGNED NULL,
+  status ENUM('pending','active','inactive') NOT NULL DEFAULT 'pending',
+  notes TEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY partners_status_type (status, partner_type),
+  KEY partners_user_id (user_id),
+  CONSTRAINT partners_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS campaign_deliverables (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  campaign_id BIGINT UNSIGNED NOT NULL,
+  partner_id BIGINT UNSIGNED NULL,
+  title VARCHAR(180) NOT NULL,
+  platform VARCHAR(80) NOT NULL,
+  status ENUM('planned','in_progress','published','cancelled') NOT NULL DEFAULT 'planned',
+  scheduled_at DATETIME NULL,
+  published_url VARCHAR(500) NULL,
+  reach BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  impressions BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  engagements BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  notes TEXT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY deliverables_campaign_status (campaign_id, status),
+  KEY deliverables_published (status, updated_at),
+  CONSTRAINT deliverables_campaign_fk FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
+  CONSTRAINT deliverables_partner_fk FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS case_studies (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  campaign_id BIGINT UNSIGNED NULL,
+  slug VARCHAR(180) NOT NULL,
+  title VARCHAR(180) NOT NULL,
+  client_label VARCHAR(160) NOT NULL,
+  summary TEXT NOT NULL,
+  strategy TEXT NOT NULL,
+  outcomes TEXT NOT NULL,
+  reach BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  impressions BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  engagements BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  is_published BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY case_studies_slug_unique (slug),
+  KEY case_studies_public (is_published, created_at),
+  CONSTRAINT case_studies_campaign_fk FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

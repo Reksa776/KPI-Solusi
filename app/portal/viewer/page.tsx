@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "@/lib/db-types";
 import { verifyPortalSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import { logoutAction } from "@/app/admin/actions";

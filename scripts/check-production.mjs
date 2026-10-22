@@ -1,7 +1,7 @@
 import { access, mkdir, rm, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
-import mysql from "mysql2/promise";
+import { PrismaClient } from "@prisma/client";
 import dotenv from "dotenv";
 
 dotenv.config({ path: ".env.local" });
@@ -33,31 +33,32 @@ if (process.env.DATABASE_URL) {
   let db;
   try {
     const url = new URL(process.env.DATABASE_URL);
-    db = await mysql.createConnection({ host: url.hostname, port: Number(url.port || 3306), user: decodeURIComponent(url.username), password: decodeURIComponent(url.password), database: decodeURIComponent(url.pathname.slice(1)), connectTimeout: 7000 });
-    const [tables] = await db.query("SELECT table_name FROM information_schema.tables WHERE table_schema=DATABASE()");
+    db = new PrismaClient();
+    await Promise.race([db.$connect(), new Promise((_, reject) => setTimeout(() => reject(new Error("timeout koneksi")), 7000))]);
+    const tables = await db.$queryRawUnsafe("SELECT table_name FROM information_schema.tables WHERE table_schema=DATABASE()");
     const tableNames = new Set(tables.map((row) => row.TABLE_NAME ?? row.table_name));
     const required = ["users", "packages", "leads", "campaigns", "partners", "campaign_deliverables", "campaign_clips", "case_studies", "application_settings", "lead_activities", "login_attempt_buckets", "notification_outbox", "team_activity_entries", "agency_clients", "dm_team_members", "dae_strategy_details", "dae_visit_details", "dae_weekly_reports"];
     const missing = required.filter((table) => !tableNames.has(table));
-    if (missing.length) fail(`Tabel database belum lengkap: ${missing.join(", ")}. Jalankan migration yang tercantum pada README.`); else ok("Koneksi MySQL dan seluruh tabel aplikasi tersedia.");
+    if (missing.length) fail(`Tabel database belum lengkap: ${missing.join(", ")}. Jalankan migration yang tercantum pada README.`); else ok("Koneksi Prisma dan seluruh tabel aplikasi tersedia.");
     if (tableNames.has("application_settings")) {
-      const [settings] = await db.query("SELECT setting_key,setting_value FROM application_settings WHERE setting_key IN ('google_analytics_id','meta_pixel_id')");
+      const settings = await db.$queryRawUnsafe("SELECT setting_key,setting_value FROM application_settings WHERE setting_key IN ('google_analytics_id','meta_pixel_id')");
       for (const setting of settings) {
         const valid = setting.setting_key === "google_analytics_id" ? !setting.setting_value || /^G-[A-Z0-9]{5,20}$/.test(setting.setting_value) : !setting.setting_value || /^\d{5,20}$/.test(setting.setting_value);
         if (!valid) warn(`Format ${setting.setting_key} di pengaturan aplikasi tidak sesuai.`);
       }
     }
-    const [columns] = await db.query("SELECT table_name,column_name FROM information_schema.columns WHERE table_schema=DATABASE() AND ((table_name='users' AND column_name IN ('session_version','admin_scope')) OR (table_name='leads' AND column_name IN ('assigned_user_id','follow_up_at','internal_notes','converted_at')) OR (table_name='campaigns' AND column_name='assigned_dm_user_id') OR (table_name='campaign_deliverables' AND column_name IN ('video_views','tiktok_sales','shopee_sales')) OR (table_name='team_activity_entries' AND column_name IN ('dae_person','agency_client_ids','week_start','dm_team_member_id','dm_person')) OR (table_name='dae_strategy_details' AND column_name='week_start') OR (table_name='dae_visit_details' AND column_name IN ('week_start','visit_count')) OR (table_name='dae_weekly_reports' AND column_name IN ('week_start','client_retention_count','strategy_idea_count','visit_count','achievement_client_count','achievement_rank','team_coordination','daily_report')))");
+    const columns = await db.$queryRawUnsafe("SELECT table_name,column_name FROM information_schema.columns WHERE table_schema=DATABASE() AND ((table_name='users' AND column_name IN ('session_version','admin_scope')) OR (table_name='leads' AND column_name IN ('assigned_user_id','follow_up_at','internal_notes','converted_at')) OR (table_name='campaigns' AND column_name='assigned_dm_user_id') OR (table_name='campaign_deliverables' AND column_name IN ('video_views','tiktok_sales','shopee_sales')) OR (table_name='team_activity_entries' AND column_name IN ('dae_person','agency_client_ids','week_start','dm_team_member_id','dm_person')) OR (table_name='dae_strategy_details' AND column_name='week_start') OR (table_name='dae_visit_details' AND column_name IN ('week_start','visit_count')) OR (table_name='dae_weekly_reports' AND column_name IN ('week_start','client_retention_count','strategy_idea_count','visit_count','achievement_client_count','achievement_rank','team_coordination','daily_report')))");
     const columnNames = new Set(columns.map((row) => `${row.TABLE_NAME ?? row.table_name}.${row.COLUMN_NAME ?? row.column_name}`));
     const requiredColumns = ["users.session_version", "users.admin_scope", "leads.converted_at", "campaigns.assigned_dm_user_id", "campaign_deliverables.video_views", "campaign_deliverables.tiktok_sales", "campaign_deliverables.shopee_sales", "leads.assigned_user_id", "leads.follow_up_at", "leads.internal_notes", "team_activity_entries.dae_person", "team_activity_entries.agency_client_ids", "team_activity_entries.week_start", "team_activity_entries.dm_team_member_id", "team_activity_entries.dm_person", "dae_strategy_details.week_start", "dae_visit_details.week_start", "dae_visit_details.visit_count", "dae_weekly_reports.week_start", "dae_weekly_reports.client_retention_count", "dae_weekly_reports.strategy_idea_count", "dae_weekly_reports.visit_count", "dae_weekly_reports.achievement_client_count", "dae_weekly_reports.achievement_rank", "dae_weekly_reports.team_coordination", "dae_weekly_reports.daily_report"];
     const missingColumns = requiredColumns.filter((column) => !columnNames.has(column));
     if (missingColumns.length) fail(`Kolom database belum lengkap: ${missingColumns.join(", ")}. Periksa migration yang tercantum pada README.`);
-    const [clipColumns] = await db.query("SELECT column_name FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='campaigns' AND column_name IN ('campaign_type','clipping_source_url','clipping_rules','clipping_rights_confirmed','clipping_rate_per_1000','clipping_budget_cap','clipping_min_views')");
+    const clipColumns = await db.$queryRawUnsafe("SELECT column_name FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='campaigns' AND column_name IN ('campaign_type','clipping_source_url','clipping_rules','clipping_rights_confirmed','clipping_rate_per_1000','clipping_budget_cap','clipping_min_views')");
     const clipNames = new Set(clipColumns.map((row) => row.COLUMN_NAME ?? row.column_name));
     const requiredClipColumns = ["campaign_type", "clipping_source_url", "clipping_rules", "clipping_rights_confirmed", "clipping_rate_per_1000", "clipping_budget_cap", "clipping_min_views"];
     const missingClipColumns = requiredClipColumns.filter((column) => !clipNames.has(column));
     if (missingClipColumns.length) fail(`Migration 005 KOL Clipping belum lengkap: ${missingClipColumns.join(", ")}.`);
   } catch (error) { fail(`Pemeriksaan koneksi/schema MySQL gagal: ${error.code ?? error.message ?? "kesalahan koneksi"}.`); }
-  finally { await db?.end(); }
+  finally { await db?.$disconnect(); }
 }
 
 try {

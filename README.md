@@ -24,29 +24,38 @@ npm run dev
 
 Buka `http://localhost:3000`. Untuk build produksi, jalankan `npm run build`, lalu `npm run start`.
 
-## Database MySQL dan admin
+## Database MySQL, Prisma, dan admin
 
-1. Salin `.env.example` menjadi `.env.local`, lalu isi `DATABASE_URL` dan `ADMIN_SESSION_SECRET`.
-2. Jalankan `database/schema.sql` pada server MySQL. Script membuat database `solusi_sejalan`, tabel `users` dan `packages`, serta tiga paket awal bila belum ada.
-3. Jalankan `database/migrations/002_marketing_workflow.sql` setelah schema dasar. Migration ini menambahkan lead, campaign, partner, deliverable, dan studi kasus.
-4. Jalankan `database/migrations/003_application_settings.sql`. Migration ini menyimpan identitas website, SEO, kontak, dan tombol utama yang dikelola melalui `/admin/pengaturan`. Backup database dan uji migration di staging sebelum menjalankannya pada database produksi.
-5. Jalankan `database/migrations/004_operations_security.sql`. Migration ini menambah PIC/jadwal/catatan lead, riwayat aktivitas, antrean notifikasi, dan versi sesi akun untuk pembatasan login serta pencabutan sesi. Jalankan setiap migration satu kali dan uji di staging sebelum production.
-6. Jalankan `database/migrations/005_kol_clipping.sql` satu kali untuk mengaktifkan campaign KOL Clipping, kiriman klip, review, dan pencatatan reward.
-7. Jalankan `database/migrations/006_multi_role_access.sql` satu kali. Migration ini mengubah role lama menjadi role baru dan menambahkan lingkup kerja Admin. Buat backup dan uji di staging sebelum production.
-8. Jalankan `database/migrations/007_dashboard_performance.sql` satu kali untuk menambah penanggung jawab DM, views video, omset TikTok/Shopee, dan waktu konversi DAE.
-9. Jalankan `database/migrations/008_team_kpi_workspaces.sql` satu kali untuk mengaktifkan target KPI bulanan dan workspace input aktivitas DM/DAE.
-10. Jalankan `database/migrations/009_agency_clients.sql` satu kali untuk membuat database relasi client dengan klasifikasi client.
-11. Jalankan `database/migrations/010_dae_team_client_fields.sql` satu kali untuk menambahkan nama orang DAE, nama client, dan jenis client opsional pada input Data Tim DAE.
-12. Jalankan `database/migrations/011_dae_team_client_link.sql` satu kali agar Data Tim DAE dapat memilih client langsung dari database Client.
-13. Jalankan `database/migrations/012_dae_team_clients_array.sql` satu kali agar satu orang DAE dapat menyimpan beberapa client terpilih sebagai array ID.
-14. Jalankan `database/migrations/013_dae_strategy_details.sql` satu kali untuk menyimpan beberapa strategi per DAE beserta client yang dituju.
-15. Jalankan `database/migrations/014_dae_visit_details.sql` satu kali untuk menyimpan daftar client yang akan dikunjungi tiap DAE.
-16. Jalankan `database/migrations/015_dae_weekly_periods.sql` satu kali untuk memberi periode mingguan pada catatan aktivitas DAE lama. Data Tim DAE berfungsi sebagai daftar tetap orang dan client yang dipegang; periode mingguan dipakai pada strategi, kunjungan, dan laporan.
-17. Jalankan `database/migrations/016_dae_weekly_reports.sql` satu kali untuk menyimpan laporan mingguan Data Per DAE.
-18. Jalankan `database/migrations/017_dae_visit_counts.sql` satu kali untuk menyimpan jumlah kunjungan per client pada setiap minggu.
-19. Jalankan `database/migrations/018_dm_team_members.sql` satu kali untuk mengelola daftar nama tim DM dan menghubungkannya dengan catatan performa DM.
-9. Buat akun Superadmin pertama dengan `npm run create-user -- --email admin@contoh.id --name "Nama Admin"`. Script meminta password tepat 8 karakter secara tersembunyi dan menyimpan hash scrypt ke MySQL.
-10. Jalankan website dengan `npm run dev`, lalu buka `/admin/login`. Superadmin dapat membuat Admin, Kliper, Buzzer, Brand, dan Viewer dari menu **Pengguna**. Admin dipilihkan lingkup DM, DAE, atau keduanya; Viewer hanya dapat melihat ringkasan. Analytics menghitung angka deliverable dan klip yang dicatat manual, bukan sinkronisasi API sosial.
+`prisma/schema.prisma` berisi model untuk seluruh 19 tabel aplikasi. Riwayat migration Prisma dibuat dari schema dasar dan seluruh perubahan SQL `002` sampai `018` di `database/migrations/`. Aplikasi dan script admin mengakses database melalui Prisma Client. `database/schema.sql` dan `database/migrations/` dipertahankan sebagai sumber migration lama; untuk deployment baru gunakan `prisma/migrations/`.
+
+1. Salin `.env.example` menjadi `.env.local`, lalu isi `DATABASE_URL` dan `ADMIN_SESSION_SECRET`. Prisma CLI membaca `.env.local` atau `.env`; format `DATABASE_URL` memakai `mysql://USER:PASSWORD@HOST:3306/DATABASE`.
+2. Buat database kosong di MySQL VPS, misalnya dengan menjalankan `CREATE DATABASE solusi_sejalan CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;` di MySQL. `DATABASE_URL` harus menunjuk ke database tersebut.
+3. Dari folder project di VPS, jalankan:
+
+   ```bash
+   npm ci
+   npm run db -- generate
+   npm run db -- migrate deploy
+   ```
+
+   Perintah terakhir membuat tabel dari baseline dan menerapkan seluruh migration sampai `018_dm_team_members`. Jalankan `npm run db -- migrate status` untuk melihat statusnya.
+
+### Database VPS yang sudah dimigrasikan dengan skrip SQL lama
+
+Jangan jalankan `migrate deploy` pada database lama sebelum Prisma mengenali riwayatnya; migration akan mencoba membuat perubahan yang sudah ada. Buat backup dan pastikan semua migration `database/schema.sql` serta `002`–`018` sudah berhasil dijalankan. Setelah itu, tandai riwayat yang sama sebagai sudah diterapkan tanpa menjalankan ulang DDL:
+
+```bash
+for migration in prisma/migrations/*/; do
+  name="$(basename "$migration")"
+  npm run db -- migrate resolve --applied "$name"
+done
+```
+
+Lalu cek dengan `npm run db -- migrate status` dan `npm run check:production`. Jika database lama belum sampai migration `018`, jangan tandai semua sebagai applied: backup dulu, terapkan hanya skrip legacy yang masih kurang secara berurutan, kemudian jalankan perintah loop di atas. Database yang tidak lengkap perlu dibandingkan dengan semua kolom di `prisma/schema.prisma` sebelum diadopsi.
+
+Untuk migration baru ke depannya, ubah `prisma/schema.prisma`, buat migration di environment development dengan `npm run db -- migrate dev --name nama_perubahan`, commit folder migration yang dibuat, lalu jalankan `npm run db -- migrate deploy` di VPS. Jangan gunakan `migrate dev` pada database production.
+
+Setelah database siap, buat akun Superadmin pertama dengan `npm run create-user -- --email admin@contoh.id --name "Nama Admin"`. Script meminta password tepat 8 karakter secara tersembunyi dan menyimpan hash scrypt. Jalankan website dengan `npm run dev`, lalu buka `/admin/login`. Superadmin dapat membuat Admin, Kliper, Buzzer, Brand, dan Viewer dari menu **Pengguna**. Admin dipilihkan lingkup DM, DAE, atau keduanya; Viewer hanya dapat melihat ringkasan.
 
 ## Lead, notifikasi, dan keamanan
 

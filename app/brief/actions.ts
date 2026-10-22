@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import type { ResultSetHeader } from "mysql2";
+import type { ResultSetHeader } from "@/lib/db-types";
 import { getDb } from "@/lib/db";
 import { queueLeadNotifications } from "@/lib/lead-notifications";
 

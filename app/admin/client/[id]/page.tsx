@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "@/lib/db-types";
 import { verifyAdminAnyScope, verifyAdminSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import AdminClientForm, { type AgencyClient } from "@/components/admin-client-form";

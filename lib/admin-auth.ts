@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { promisify } from "node:util";
 import { scrypt as scryptCallback } from "node:crypto";
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "@/lib/db-types";
 import { getDb } from "@/lib/db";
 
 const COOKIE_NAME = "ss_admin_session";

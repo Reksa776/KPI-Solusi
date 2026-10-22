@@ -1,0 +1,574 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  superadmin
+  admin
+  kliper
+  buzzer
+  brand
+  viewer
+
+  @@map("user_role")
+}
+
+enum AdminScope {
+  dm
+  dae
+  both
+
+  @@map("admin_scope")
+}
+
+enum UserStatus {
+  active
+  suspended
+
+  @@map("user_status")
+}
+
+enum LeadStatus {
+  new
+  reviewing
+  proposal
+  converted
+  closed
+
+  @@map("lead_status")
+}
+
+enum CampaignStatus {
+  planning
+  active
+  paused
+  completed
+  cancelled
+
+  @@map("campaign_status")
+}
+
+enum CampaignType {
+  standard
+  kol_clipping
+
+  @@map("campaign_type")
+}
+
+enum PartnerType {
+  creator
+  community
+  publisher
+  other
+
+  @@map("partner_type")
+}
+
+enum PartnerStatus {
+  pending
+  active
+  inactive
+
+  @@map("partner_status")
+}
+
+enum DeliverableStatus {
+  planned
+  in_progress
+  published
+  cancelled
+
+  @@map("deliverable_status")
+}
+
+enum ClipPlatform {
+  tiktok
+  instagram
+  youtube
+  other
+
+  @@map("clip_platform")
+}
+
+enum ClipStatus {
+  pending
+  approved
+  rejected
+
+  @@map("clip_status")
+}
+
+enum LeadActivityType {
+  created
+  status
+  note
+  assignment
+  follow_up
+  converted
+
+  @@map("lead_activity_type")
+}
+
+enum NotificationChannel {
+  email
+  whatsapp
+
+  @@map("notification_channel")
+}
+
+enum NotificationStatus {
+  pending
+  processing
+  sent
+  failed
+
+  @@map("notification_status")
+}
+
+enum KpiScope {
+  dm
+  dae
+
+  @@map("kpi_scope")
+}
+
+enum KpiMetric {
+  contents
+  video_views
+  tiktok_sales
+  shopee_sales
+  new_clients
+  strategies
+  visits
+
+  @@map("kpi_metric")
+}
+
+enum ActivityEntryType {
+  dm_client
+  dae_individual
+  dae_team
+  dae_strategy
+  dae_visit
+  dae_client
+
+  @@map("activity_entry_type")
+}
+
+enum AgencyClientType {
+  existing
+  prospect
+  ex_client
+  community
+  media
+  institution
+  agency_ph
+  etc
+
+  @@map("agency_client_type")
+}
+
+model User {
+  id                   Int                 @id @default(autoincrement()) @db.UnsignedInt
+  fullName             String              @map("full_name") @db.VarChar(160)
+  email                String              @unique(map: "users_email_unique") @db.VarChar(191)
+  passwordHash         String              @map("password_hash") @db.VarChar(255)
+  role                 UserRole            @default(brand)
+  adminScope           AdminScope          @default(both) @map("admin_scope")
+  status               UserStatus          @default(active)
+  sessionVersion       Int                 @default(0) @map("session_version") @db.UnsignedInt
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt            DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  assignedLeads        Lead[]              @relation("LeadAssignee")
+  leadActivities       LeadActivity[]      @relation("LeadActor")
+  clientCampaigns      Campaign[]          @relation("CampaignClientUser")
+  assignedCampaigns    Campaign[]          @relation("CampaignAssignedDm")
+  partners             Partner[]
+  updatedKpiTargets    TeamKpiTarget[]
+  assignedTeamEntries  TeamActivityEntry[] @relation("TeamEntryAssignee")
+  createdTeamEntries   TeamActivityEntry[] @relation("TeamEntryCreator")
+  createdAgencyClients AgencyClient[]
+  createdStrategies    DaeStrategyDetail[]
+  createdVisits        DaeVisitDetail[]
+  createdWeeklyReports DaeWeeklyReport[]
+  createdDmMembers     DmTeamMember[]
+
+  @@index([role, status], map: "users_role_status")
+  @@map("users")
+}
+
+model Package {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  name        String   @db.VarChar(120)
+  slug        String   @unique(map: "packages_slug_unique") @db.VarChar(140)
+  tagline     String   @db.VarChar(160)
+  description String   @db.Text
+  price       BigInt   @default(0) @db.UnsignedBigInt
+  features    Json
+  highlighted Boolean  @default(false)
+  isPublished Boolean  @default(true) @map("is_published")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@index([isPublished, sortOrder], map: "packages_public_order")
+  @@map("packages")
+}
+
+model Lead {
+  id                BigInt         @id @default(autoincrement()) @db.UnsignedBigInt
+  contactName       String         @map("contact_name") @db.VarChar(160)
+  companyName       String         @map("company_name") @db.VarChar(160)
+  email             String         @db.VarChar(191)
+  phone             String         @db.VarChar(40)
+  websiteOrSocial   String?        @map("website_or_social") @db.VarChar(255)
+  campaignGoal      String         @map("campaign_goal") @db.Text
+  targetAudience    String         @map("target_audience") @db.VarChar(255)
+  preferredChannels String         @map("preferred_channels") @db.VarChar(255)
+  budgetMin         BigInt?        @map("budget_min") @db.UnsignedBigInt
+  budgetMax         BigInt?        @map("budget_max") @db.UnsignedBigInt
+  targetDate        DateTime?      @map("target_date") @db.Date
+  status            LeadStatus     @default(new)
+  convertedAt       DateTime?      @map("converted_at") @db.DateTime(0)
+  assignedUserId    Int?           @map("assigned_user_id") @db.UnsignedInt
+  followUpAt        DateTime?      @map("follow_up_at") @db.DateTime(0)
+  internalNotes     String?        @map("internal_notes") @db.Text
+  privacyAcceptedAt DateTime       @default(now()) @map("privacy_accepted_at") @db.Timestamp(0)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt         DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  assignedUser      User?          @relation("LeadAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull, map: "leads_assigned_user_fk")
+  campaign          Campaign?
+  activities        LeadActivity[]
+
+  @@index([status, createdAt], map: "leads_status_created")
+  @@index([email], map: "leads_email")
+  @@index([followUpAt, status], map: "leads_follow_up")
+  @@map("leads")
+}
+
+model Campaign {
+  id                      BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
+  leadId                  BigInt?               @unique(map: "campaigns_lead_unique") @map("lead_id") @db.UnsignedBigInt
+  clientUserId            Int?                  @map("client_user_id") @db.UnsignedInt
+  assignedDmUserId        Int?                  @map("assigned_dm_user_id") @db.UnsignedInt
+  title                   String                @db.VarChar(180)
+  clientName              String                @map("client_name") @db.VarChar(160)
+  clientEmail             String                @map("client_email") @db.VarChar(191)
+  objective               String                @db.Text
+  status                  CampaignStatus        @default(planning)
+  startDate               DateTime?             @map("start_date") @db.Date
+  endDate                 DateTime?             @map("end_date") @db.Date
+  budget                  BigInt?               @db.UnsignedBigInt
+  campaignType            CampaignType          @default(standard) @map("campaign_type")
+  clippingSourceUrl       String?               @map("clipping_source_url") @db.VarChar(500)
+  clippingRules           String?               @map("clipping_rules") @db.Text
+  clippingRightsConfirmed Boolean               @default(false) @map("clipping_rights_confirmed")
+  clippingRatePer1000     BigInt                @default(0) @map("clipping_rate_per_1000") @db.UnsignedBigInt
+  clippingBudgetCap       BigInt?               @map("clipping_budget_cap") @db.UnsignedBigInt
+  clippingMinViews        Int                   @default(0) @map("clipping_min_views") @db.UnsignedInt
+  createdAt               DateTime              @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt               DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  lead                    Lead?                 @relation(fields: [leadId], references: [id], onDelete: SetNull, map: "campaigns_lead_fk")
+  clientUser              User?                 @relation("CampaignClientUser", fields: [clientUserId], references: [id], onDelete: SetNull, map: "campaigns_client_user_fk")
+  assignedDm              User?                 @relation("CampaignAssignedDm", fields: [assignedDmUserId], references: [id], onDelete: SetNull, map: "campaigns_dm_owner_fk")
+  deliverables            CampaignDeliverable[]
+  clips                   CampaignClip[]
+  caseStudies             CaseStudy[]
+
+  @@index([status, startDate, endDate], map: "campaigns_status_dates")
+  @@index([clientEmail], map: "campaigns_client_email")
+  @@index([assignedDmUserId], map: "campaigns_dm_owner")
+  @@map("campaigns")
+}
+
+model Partner {
+  id           BigInt                @id @default(autoincrement()) @db.UnsignedBigInt
+  userId       Int?                  @map("user_id") @db.UnsignedInt
+  displayName  String                @map("display_name") @db.VarChar(160)
+  partnerType  PartnerType           @default(creator) @map("partner_type")
+  platform     String                @db.VarChar(80)
+  handle       String?               @db.VarChar(191)
+  profileUrl   String?               @map("profile_url") @db.VarChar(255)
+  niche        String                @db.VarChar(255)
+  audienceSize Int?                  @map("audience_size") @db.UnsignedInt
+  rate         BigInt?               @db.UnsignedBigInt
+  status       PartnerStatus         @default(pending)
+  notes        String?               @db.Text
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt    DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  user         User?                 @relation(fields: [userId], references: [id], onDelete: SetNull, map: "partners_user_fk")
+  deliverables CampaignDeliverable[]
+  clips        CampaignClip[]
+
+  @@index([status, partnerType], map: "partners_status_type")
+  @@index([userId], map: "partners_user_id")
+  @@map("partners")
+}
+
+model CampaignDeliverable {
+  id           BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  campaignId   BigInt            @map("campaign_id") @db.UnsignedBigInt
+  partnerId    BigInt?           @map("partner_id") @db.UnsignedBigInt
+  title        String            @db.VarChar(180)
+  platform     String            @db.VarChar(80)
+  status       DeliverableStatus @default(planned)
+  scheduledAt  DateTime?         @map("scheduled_at") @db.DateTime(0)
+  publishedUrl String?           @map("published_url") @db.VarChar(500)
+  reach        BigInt            @default(0) @db.UnsignedBigInt
+  impressions  BigInt            @default(0) @db.UnsignedBigInt
+  engagements  BigInt            @default(0) @db.UnsignedBigInt
+  videoViews   BigInt            @default(0) @map("video_views") @db.UnsignedBigInt
+  tiktokSales  BigInt            @default(0) @map("tiktok_sales") @db.UnsignedBigInt
+  shopeeSales  BigInt            @default(0) @map("shopee_sales") @db.UnsignedBigInt
+  notes        String?           @db.Text
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt    DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  campaign     Campaign          @relation(fields: [campaignId], references: [id], onDelete: Cascade, map: "deliverables_campaign_fk")
+  partner      Partner?          @relation(fields: [partnerId], references: [id], onDelete: SetNull, map: "deliverables_partner_fk")
+
+  @@index([campaignId, status], map: "deliverables_campaign_status")
+  @@index([status, updatedAt], map: "deliverables_published")
+  @@map("campaign_deliverables")
+}
+
+model CampaignClip {
+  id           BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  campaignId   BigInt       @map("campaign_id") @db.UnsignedBigInt
+  partnerId    BigInt       @map("partner_id") @db.UnsignedBigInt
+  clipTitle    String       @map("clip_title") @db.VarChar(180)
+  platform     ClipPlatform
+  postUrl      String       @unique(map: "campaign_clips_post_url_unique") @map("post_url") @db.VarChar(500)
+  status       ClipStatus   @default(pending)
+  views        BigInt       @default(0) @db.UnsignedBigInt
+  clipperNote  String?      @map("clipper_note") @db.VarChar(1000)
+  reviewerNote String?      @map("reviewer_note") @db.VarChar(1000)
+  submittedAt  DateTime     @default(now()) @map("submitted_at") @db.Timestamp(0)
+  reviewedAt   DateTime?    @map("reviewed_at") @db.DateTime(0)
+  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  campaign     Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade, map: "campaign_clips_campaign_fk")
+  partner      Partner      @relation(fields: [partnerId], references: [id], onDelete: Cascade, map: "campaign_clips_partner_fk")
+
+  @@index([campaignId, status, submittedAt], map: "campaign_clips_campaign_status")
+  @@index([partnerId, status, submittedAt], map: "campaign_clips_partner")
+  @@map("campaign_clips")
+}
+
+model CaseStudy {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  campaignId  BigInt?   @map("campaign_id") @db.UnsignedBigInt
+  slug        String    @unique(map: "case_studies_slug_unique") @db.VarChar(180)
+  title       String    @db.VarChar(180)
+  clientLabel String    @map("client_label") @db.VarChar(160)
+  summary     String    @db.Text
+  strategy    String    @db.Text
+  outcomes    String    @db.Text
+  reach       BigInt    @default(0) @db.UnsignedBigInt
+  impressions BigInt    @default(0) @db.UnsignedBigInt
+  engagements BigInt    @default(0) @db.UnsignedBigInt
+  isPublished Boolean   @default(false) @map("is_published")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull, map: "case_studies_campaign_fk")
+
+  @@index([isPublished, createdAt], map: "case_studies_public")
+  @@map("case_studies")
+}
+
+model ApplicationSetting {
+  settingKey   String   @id @map("setting_key") @db.VarChar(80)
+  settingValue String   @map("setting_value") @db.Text
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@map("application_settings")
+}
+
+model LeadActivity {
+  id           BigInt           @id @default(autoincrement()) @db.UnsignedBigInt
+  leadId       BigInt           @map("lead_id") @db.UnsignedBigInt
+  actorUserId  Int?             @map("actor_user_id") @db.UnsignedInt
+  activityType LeadActivityType @map("activity_type")
+  description  String           @db.VarChar(1000)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamp(0)
+  lead         Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade, map: "lead_activities_lead_fk")
+  actor        User?            @relation("LeadActor", fields: [actorUserId], references: [id], onDelete: SetNull, map: "lead_activities_actor_fk")
+
+  @@index([leadId, createdAt], map: "lead_activities_timeline")
+  @@map("lead_activities")
+}
+
+model LoginAttemptBucket {
+  bucketKey       String    @id @map("bucket_key") @db.Char(64)
+  windowStartedAt DateTime  @map("window_started_at") @db.DateTime(0)
+  failureCount    Int       @default(0) @map("failure_count") @db.UnsignedTinyInt
+  lockedUntil     DateTime? @map("locked_until") @db.DateTime(0)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@index([lockedUntil], map: "login_attempt_lock")
+  @@map("login_attempt_buckets")
+}
+
+model NotificationOutbox {
+  id           BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
+  channel      NotificationChannel
+  payload      Json
+  status       NotificationStatus  @default(pending)
+  attempts     Int                 @default(0) @db.UnsignedTinyInt
+  availableAt  DateTime            @default(now()) @map("available_at") @db.DateTime(0)
+  processingAt DateTime?           @map("processing_at") @db.DateTime(0)
+  lastError    String?             @map("last_error") @db.VarChar(1000)
+  createdAt    DateTime            @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt    DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@index([status, availableAt], map: "notification_queue")
+  @@map("notification_outbox")
+}
+
+model TeamKpiTarget {
+  id          BigInt    @id @default(autoincrement()) @db.UnsignedBigInt
+  scope       KpiScope
+  metric      KpiMetric
+  periodMonth String    @map("period_month") @db.Char(7)
+  targetValue BigInt    @default(0) @map("target_value") @db.UnsignedBigInt
+  updatedBy   Int?      @map("updated_by") @db.UnsignedInt
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  updater     User?     @relation(fields: [updatedBy], references: [id], onDelete: SetNull, map: "team_kpi_target_user_fk")
+
+  @@unique([scope, metric, periodMonth], map: "team_kpi_target_unique")
+  @@map("team_kpi_targets")
+}
+
+model AgencyClient {
+  id          BigInt              @id @default(autoincrement()) @db.UnsignedBigInt
+  clientName  String              @map("client_name") @db.VarChar(180)
+  clientType  AgencyClientType    @default(prospect) @map("client_type")
+  contactName String?             @map("contact_name") @db.VarChar(160)
+  email       String?             @db.VarChar(191)
+  phone       String?             @db.VarChar(40)
+  notes       String?             @db.Text
+  createdBy   Int?                @map("created_by") @db.UnsignedInt
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  creator     User?               @relation(fields: [createdBy], references: [id], onDelete: SetNull, map: "agency_clients_creator_fk")
+  teamEntries TeamActivityEntry[]
+  strategies  DaeStrategyDetail[]
+  visits      DaeVisitDetail[]
+
+  @@index([clientType, updatedAt], map: "agency_clients_type_updated")
+  @@index([clientName], map: "agency_clients_name")
+  @@map("agency_clients")
+}
+
+model DmTeamMember {
+  id        Int                 @id @default(autoincrement()) @db.UnsignedInt
+  fullName  String              @unique(map: "dm_team_member_name_unique") @map("full_name") @db.VarChar(160)
+  createdBy Int?                @map("created_by") @db.UnsignedInt
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  creator   User?               @relation(fields: [createdBy], references: [id], onDelete: SetNull, map: "dm_team_member_creator_fk")
+  entries   TeamActivityEntry[]
+
+  @@map("dm_team_members")
+}
+
+model TeamActivityEntry {
+  id              BigInt            @id @default(autoincrement()) @db.UnsignedBigInt
+  scope           KpiScope
+  entryType       ActivityEntryType @map("entry_type")
+  title           String            @db.VarChar(180)
+  clientName      String?           @map("client_name") @db.VarChar(160)
+  activityDate    DateTime          @map("activity_date") @db.Date
+  weekStart       DateTime          @map("week_start") @db.Date
+  contents        BigInt            @default(0) @db.UnsignedBigInt
+  videoViews      BigInt            @default(0) @map("video_views") @db.UnsignedBigInt
+  tiktokSales     BigInt            @default(0) @map("tiktok_sales") @db.UnsignedBigInt
+  shopeeSales     BigInt            @default(0) @map("shopee_sales") @db.UnsignedBigInt
+  newClients      Int               @default(0) @map("new_clients") @db.UnsignedInt
+  strategies      Int               @default(0) @db.UnsignedInt
+  visits          Int               @default(0) @db.UnsignedInt
+  notes           String?           @db.Text
+  assignedUserId  Int?              @map("assigned_user_id") @db.UnsignedInt
+  dmTeamMemberId  Int?              @map("dm_team_member_id") @db.UnsignedInt
+  dmPerson        String?           @map("dm_person") @db.VarChar(160)
+  daePerson       String?           @map("dae_person") @db.VarChar(160)
+  clientType      String?           @map("client_type") @db.VarChar(30)
+  agencyClientId  BigInt?           @map("agency_client_id") @db.UnsignedBigInt
+  agencyClientIds Json?             @map("agency_client_ids")
+  createdBy       Int?              @map("created_by") @db.UnsignedInt
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  assignee        User?             @relation("TeamEntryAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull, map: "team_activity_assignee_fk")
+  creator         User?             @relation("TeamEntryCreator", fields: [createdBy], references: [id], onDelete: SetNull, map: "team_activity_user_fk")
+  dmTeamMember    DmTeamMember?     @relation(fields: [dmTeamMemberId], references: [id], onDelete: SetNull, map: "team_activity_dm_member_fk")
+  agencyClient    AgencyClient?     @relation(fields: [agencyClientId], references: [id], onDelete: SetNull, map: "team_activity_agency_client_fk")
+
+  @@index([scope, activityDate], map: "team_activity_scope_date")
+  @@index([entryType, activityDate], map: "team_activity_type_date")
+  @@index([clientType], map: "team_activity_client_type")
+  @@index([agencyClientId], map: "team_activity_agency_client")
+  @@index([entryType, weekStart, daePerson], map: "team_activity_week_dae")
+  @@index([dmTeamMemberId], map: "team_activity_dm_member")
+  @@map("team_activity_entries")
+}
+
+model DaeStrategyDetail {
+  id             BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  daePerson      String       @map("dae_person") @db.VarChar(160)
+  weekStart      DateTime     @map("week_start") @db.Date
+  strategyText   String       @map("strategy_text") @db.VarChar(500)
+  agencyClientId BigInt       @map("agency_client_id") @db.UnsignedBigInt
+  createdBy      Int?         @map("created_by") @db.UnsignedInt
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  client         AgencyClient @relation(fields: [agencyClientId], references: [id], onDelete: Cascade, map: "dae_strategy_client_fk")
+  creator        User?        @relation(fields: [createdBy], references: [id], onDelete: SetNull, map: "dae_strategy_creator_fk")
+
+  @@index([daePerson], map: "dae_strategy_person")
+  @@index([agencyClientId], map: "dae_strategy_client")
+  @@index([weekStart, daePerson], map: "dae_strategy_week_person")
+  @@map("dae_strategy_details")
+}
+
+model DaeVisitDetail {
+  id             BigInt       @id @default(autoincrement()) @db.UnsignedBigInt
+  daePerson      String       @map("dae_person") @db.VarChar(160)
+  weekStart      DateTime     @map("week_start") @db.Date
+  agencyClientId BigInt       @map("agency_client_id") @db.UnsignedBigInt
+  visitCount     Int          @default(1) @map("visit_count") @db.UnsignedInt
+  createdBy      Int?         @map("created_by") @db.UnsignedInt
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  client         AgencyClient @relation(fields: [agencyClientId], references: [id], onDelete: Cascade, map: "dae_visit_client_fk")
+  creator        User?        @relation(fields: [createdBy], references: [id], onDelete: SetNull, map: "dae_visit_creator_fk")
+
+  @@unique([weekStart, daePerson, agencyClientId], map: "dae_visit_week_person_client")
+  @@index([agencyClientId], map: "dae_visit_client")
+  @@index([weekStart, daePerson], map: "dae_visit_week_person")
+  @@map("dae_visit_details")
+}
+
+model DaeWeeklyReport {
+  id                     BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
+  daePerson              String   @map("dae_person") @db.VarChar(160)
+  weekStart              DateTime @map("week_start") @db.Date
+  clientRetentionCount   Int      @default(0) @map("client_retention_count") @db.UnsignedInt
+  strategyIdeaCount      Int      @default(0) @map("strategy_idea_count") @db.UnsignedInt
+  visitCount             Int      @default(0) @map("visit_count") @db.UnsignedInt
+  achievementClientCount Int      @default(0) @map("achievement_client_count") @db.UnsignedInt
+  achievementRank        Int      @default(0) @map("achievement_rank") @db.UnsignedInt
+  teamCoordination       String?  @map("team_coordination") @db.Text
+  dailyReport            String?  @map("daily_report") @db.Text
+  createdBy              Int?     @map("created_by") @db.UnsignedInt
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt              DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  creator                User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull, map: "dae_weekly_report_creator_fk")
+
+  @@unique([daePerson, weekStart], map: "dae_weekly_report_person_week")
+  @@index([weekStart], map: "dae_weekly_report_week")
+  @@map("dae_weekly_reports")
+}

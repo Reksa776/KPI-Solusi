@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "@/lib/db-types";
 import { getAdminSessionUser, verifyAdminAnyScope } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import { monthWeekFromStart } from "@/lib/dae-weeks";
@@ -32,20 +32,12 @@ export async function saveDaeStrategies(form: FormData) {
   const [clients] = await db.execute<(RowDataPacket & { id: number })[]>(`SELECT id FROM agency_clients WHERE id IN (${placeholders})`, [...new Set(clientIds)]);
   if (clients.length !== new Set(clientIds).size) redirect(`${path}?${replaceDaePerson ? `edit=${encodeURIComponent(replaceDaePerson)}&week=${encodeURIComponent(replaceWeekStart)}` : "new=1"}&error=client`);
   const user = await getAdminSessionUser();
-  const connection = await db.getConnection();
-  try {
-    await connection.beginTransaction();
-    if (replaceDaePerson) await connection.execute("DELETE FROM dae_strategy_details WHERE dae_person=? AND week_start=?", [replaceDaePerson, replaceWeekStart]);
+  await db.transaction(async tx => {
+    if (replaceDaePerson) await tx.execute("DELETE FROM dae_strategy_details WHERE dae_person=? AND week_start=?", [replaceDaePerson, replaceWeekStart]);
     for (let index = 0; index < strategyTexts.length; index++) {
-      await connection.execute("INSERT INTO dae_strategy_details (dae_person,week_start,strategy_text,agency_client_id,created_by) VALUES (?,?,?,?,?)", [daePerson, weekStart, strategyTexts[index], clientIds[index], user?.id ?? null]);
+      await tx.execute("INSERT INTO dae_strategy_details (dae_person,week_start,strategy_text,agency_client_id,created_by) VALUES (?,?,?,?,?)", [daePerson, weekStart, strategyTexts[index], clientIds[index], user?.id ?? null]);
     }
-    await connection.commit();
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+  });
   revalidatePath(path);
   revalidatePath("/admin/kpi");
   redirect(`${path}?saved=1`);

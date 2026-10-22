@@ -1,13 +1,32 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { ResultSetHeader, RowDataPacket } from "mysql2";
+import type { ResultSetHeader, RowDataPacket } from "@/lib/db-types";
 import { getDb } from "@/lib/db";
 import { getAdminSessionUser, verifyAdminSession, verifyOwnerSession, verifyPortalSession, verifyAdminScope, verifyAdminAnyScope, verifyPartnerPortalSession } from "@/lib/admin-auth";
 const val = (d: FormData, k: string, max = 255) => String(d.get(k) ?? "").trim().slice(0, max);
 const allowed = (v: string, values: string[]) => values.includes(v);
 export async function updateLeadStatus(d: FormData) { if (!(await verifyAdminScope("dae"))) redirect("/admin/login"); const id=Number(d.get("id")), status=val(d,"status"); if (!Number.isSafeInteger(id)||id<1||!allowed(status,["new","reviewing","proposal","closed"])) redirect("/admin/brief"); await getDb().execute("UPDATE leads SET status=? WHERE id=? AND status <> 'converted'",[status,id]); revalidatePath("/admin/brief"); }
-export async function convertLead(d: FormData) { const actor=await getAdminSessionUser(); if(!actor || !(await verifyAdminScope("dae"))) redirect("/admin/login"); const id=Number(d.get("id")); if(!Number.isSafeInteger(id)||id<1) redirect("/admin/brief"); const db=getDb(); const conn=await db.getConnection(); try { await conn.beginTransaction(); const [rows]=await conn.execute<(RowDataPacket & {id:number;contact_name:string;company_name:string;email:string;campaign_goal:string;budget_max:number|null;target_date:string|null;status:string})[]>("SELECT * FROM leads WHERE id=? FOR UPDATE",[id]); const lead=rows[0]; if(!lead||lead.status==="converted") { await conn.rollback(); redirect("/admin/brief?error=converted"); } const [userRows]=await conn.execute<(RowDataPacket & {id:number})[]>("SELECT id FROM users WHERE email=? AND role='brand' LIMIT 1",[lead.email]); const [result]=await conn.execute<ResultSetHeader>("INSERT INTO campaigns (lead_id,client_user_id,title,client_name,client_email,objective,status,start_date,budget) VALUES (?,?,?,?,? ,?,'planning',?,?)",[id,userRows[0]?.id??null,`${lead.company_name} — campaign`,lead.contact_name,lead.email,lead.campaign_goal,lead.target_date,lead.budget_max]); await conn.execute("UPDATE leads SET status='converted',converted_at=NOW() WHERE id=?",[id]); await conn.execute("INSERT INTO lead_activities (lead_id,actor_user_id,activity_type,description) VALUES (?,? ,'converted',?)",[id,actor.id,"Brief dikonversi menjadi campaign."]); await conn.commit(); revalidatePath("/admin/campaign"); revalidatePath("/admin/brief"); redirect(`/admin/campaign/${result.insertId}`); } catch(e) { try { await conn.rollback(); } catch {} if(e && typeof e === "object" && "digest" in e) throw e; throw e; } finally { conn.release(); } }
+export async function convertLead(d: FormData) {
+  const actor = await getAdminSessionUser();
+  if (!actor || !(await verifyAdminScope("dae"))) redirect("/admin/login");
+  const id = Number(d.get("id"));
+  if (!Number.isSafeInteger(id) || id < 1) redirect("/admin/brief");
+  let campaignId = 0;
+  await getDb().transaction(async tx => {
+    const [rows] = await tx.execute<(RowDataPacket & { id:number;contact_name:string;company_name:string;email:string;campaign_goal:string;budget_max:number|null;target_date:string|null;status:string })[]>("SELECT * FROM leads WHERE id=? FOR UPDATE", [id]);
+    const lead = rows[0];
+    if (!lead || lead.status === "converted") redirect("/admin/brief?error=converted");
+    const [userRows] = await tx.execute<(RowDataPacket & { id:number })[]>("SELECT id FROM users WHERE email=? AND role='brand' LIMIT 1", [lead.email]);
+    const [result] = await tx.execute<ResultSetHeader>("INSERT INTO campaigns (lead_id,client_user_id,title,client_name,client_email,objective,status,start_date,budget) VALUES (?,?,?,?,? ,?,'planning',?,?)", [id,userRows[0]?.id??null,`${lead.company_name} — campaign`,lead.contact_name,lead.email,lead.campaign_goal,lead.target_date,lead.budget_max]);
+    campaignId = result.insertId;
+    await tx.execute("UPDATE leads SET status='converted',converted_at=NOW() WHERE id=?", [id]);
+    await tx.execute("INSERT INTO lead_activities (lead_id,actor_user_id,activity_type,description) VALUES (?,? ,'converted',?)", [id,actor.id,"Brief dikonversi menjadi campaign."]);
+  });
+  revalidatePath("/admin/campaign");
+  revalidatePath("/admin/brief");
+  redirect(`/admin/campaign/${campaignId}`);
+}
 export async function saveCampaign(d: FormData) {
   if (!(await verifyAdminAnyScope(["dm","dae"]))) redirect("/admin/login");
   const id=Number(d.get("id")), status=val(d,"status"), campaignType=val(d,"campaign_type")||"standard";
@@ -161,33 +180,26 @@ export async function reviewCampaignClip(d: FormData) {
   const note = val(d, "reviewer_note", 1000);
   if (!Number.isSafeInteger(id) || id < 1 || !allowed(status, ["approved", "rejected"]) || !Number.isSafeInteger(views) || views < 0) redirect("/admin/campaign");
   const db = getDb();
-  const conn = await db.getConnection();
   let campaignId = 0;
-  try {
-    await conn.beginTransaction();
-    const [clips] = await conn.execute<(RowDataPacket & { campaign_id: number })[]>("SELECT campaign_id FROM campaign_clips WHERE id=? FOR UPDATE", [id]);
-    if (!clips[0]) { await conn.rollback(); redirect("/admin/campaign"); }
+  await db.transaction(async tx => {
+    const [clips] = await tx.execute<(RowDataPacket & { campaign_id: number })[]>("SELECT campaign_id FROM campaign_clips WHERE id=? FOR UPDATE", [id]);
+    if (!clips[0]) redirect("/admin/campaign");
     campaignId = Number(clips[0].campaign_id);
-    const [campaigns] = await conn.execute<(RowDataPacket & { clipping_rate_per_1000: number | string; clipping_budget_cap: number | string | null; clipping_min_views: number })[]>("SELECT clipping_rate_per_1000,clipping_budget_cap,clipping_min_views FROM campaigns WHERE id=? FOR UPDATE", [campaignId]);
+    const [campaigns] = await tx.execute<(RowDataPacket & { clipping_rate_per_1000: number | string; clipping_budget_cap: number | string | null; clipping_min_views: number })[]>("SELECT clipping_rate_per_1000,clipping_budget_cap,clipping_min_views FROM campaigns WHERE id=? FOR UPDATE", [campaignId]);
     const campaign = campaigns[0];
-    if (!campaign) { await conn.rollback(); redirect("/admin/campaign"); }
+    if (!campaign) redirect("/admin/campaign");
     if (status === "approved") {
-      const [approved] = await conn.execute<(RowDataPacket & { views: number | string })[]>("SELECT views FROM campaign_clips WHERE campaign_id=? AND status='approved' AND id<>?", [campaignId, id]);
+      const [approved] = await tx.execute<(RowDataPacket & { views: number | string })[]>("SELECT views FROM campaign_clips WHERE campaign_id=? AND status='approved' AND id<>?", [campaignId, id]);
       const rate = BigInt(campaign.clipping_rate_per_1000);
       const minViews = BigInt(campaign.clipping_min_views);
       const cap = BigInt(campaign.clipping_budget_cap ?? 0);
       const current = approved.reduce((sum, row) => { const count = BigInt(row.views); return sum + (count >= minViews ? count * rate / BigInt(1000) : BigInt(0)); }, BigInt(0));
       const proposedViews = BigInt(views);
       const proposedReward = proposedViews >= minViews ? proposedViews * rate / BigInt(1000) : BigInt(0);
-      if (current + proposedReward > cap) { await conn.rollback(); redirect(`/admin/campaign/${campaignId}?clip_error=budget`); }
+      if (current + proposedReward > cap) redirect(`/admin/campaign/${campaignId}?clip_error=budget`);
     }
-    await conn.execute("UPDATE campaign_clips SET status=?,views=?,reviewer_note=?,reviewed_at=NOW() WHERE id=?", [status, views, note || null, id]);
-    await conn.commit();
-  } catch (error) {
-    try { await conn.rollback(); } catch { /* transaction may already be closed */ }
-    if (error && typeof error === "object" && "digest" in error) throw error;
-    throw error;
-  } finally { conn.release(); }
+    await tx.execute("UPDATE campaign_clips SET status=?,views=?,reviewer_note=?,reviewed_at=NOW() WHERE id=?", [status, views, note || null, id]);
+  });
   revalidatePath(`/admin/campaign/${campaignId}`);
   revalidatePath("/admin/analytics");
   revalidatePath("/portal/partner");

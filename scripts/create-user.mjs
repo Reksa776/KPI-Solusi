@@ -1,6 +1,6 @@
 import { randomBytes, scrypt as scryptCallback } from "node:crypto";
 import { promisify } from "node:util";
-import mysql from "mysql2/promise";
+import { PrismaClient } from "@prisma/client";
 import dotenv from "dotenv";
 
 dotenv.config({ path: ".env.local" });
@@ -72,26 +72,19 @@ if (password.length !== 8) {
 const salt = randomBytes(16).toString("hex");
 const derivedKey = await scrypt(password, salt, 64);
 const passwordHash = `scrypt$${salt}$${Buffer.from(derivedKey).toString("hex")}`;
-const url = new URL(process.env.DATABASE_URL);
-const db = await mysql.createConnection({
-  host: url.hostname,
-  port: url.port ? Number(url.port) : 3306,
-  user: decodeURIComponent(url.username),
-  password: decodeURIComponent(url.password),
-  database: decodeURIComponent(url.pathname.slice(1)),
-});
+const db = new PrismaClient();
 
 try {
-  await db.execute(
+  await db.$executeRawUnsafe(
     "INSERT INTO users (full_name, email, password_hash, role, status) VALUES (?, ?, ?, ?, 'active')",
-    [name, email, passwordHash, role],
+    name, email, passwordHash, role,
   );
   console.log(`User ${email} berhasil dibuat dengan role ${role}.`);
 } catch (error) {
-  if (error?.code === "ER_DUP_ENTRY") {
+  if (error?.code === "P2002" || error?.code === "P2010" && /Duplicate entry/i.test(error?.message ?? "")) {
     console.error(`Email ${email} sudah terdaftar.`);
     process.exitCode = 1;
-  } else if (error?.code === "ER_NO_SUCH_TABLE") {
+  } else if (error?.code === "P2010" && /doesn't exist|does not exist/i.test(error?.message ?? "")) {
     console.error("Tabel users belum tersedia. Jalankan database/schema.sql terlebih dahulu.");
     process.exitCode = 1;
   } else {
@@ -101,3 +94,4 @@ try {
 } finally {
   await db.end();
 }
+finally { await db.$disconnect(); }

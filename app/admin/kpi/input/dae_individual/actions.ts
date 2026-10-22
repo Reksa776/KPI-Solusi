@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "@/lib/db-types";
 import { getAdminSessionUser, verifyAdminAnyScope } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import { monthWeekFromStart } from "@/lib/dae-weeks";

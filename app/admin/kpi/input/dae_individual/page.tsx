@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import type { RowDataPacket } from "mysql2";
+import type { RowDataPacket } from "@/lib/db-types";
 import AdminNavigation from "@/components/admin-navigation";
 import AdminTopbar from "@/components/admin-topbar";
 import DaeWeeklyReportForm from "@/components/dae-weekly-report-form";
