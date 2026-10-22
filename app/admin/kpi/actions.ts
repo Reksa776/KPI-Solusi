@@ -108,14 +108,18 @@ export async function saveDmClientBatch(form: FormData) {
   // agency_clients.id is MySQL BIGINT, so Prisma returns bigint while form
   // values are numeric strings. Normalize map keys so selected clients resolve.
   const clientsById = new Map(clients.map(client => [Number(client.id), client]));
-  const dmsById = new Map(dms.map(dm => [dm.id, dm]));
-  if (clientsById.size !== new Set(clientIds).size || dmsById.size !== new Set(dmMemberIds).size) redirect("/admin/kpi/input/dm_client?select=1&error=client");
+  const dmsById = new Map(dms.map(dm => [Number(dm.id), dm]));
+  const selectedClients = clientIds.map(id => clientsById.get(id));
+  const selectedDms = dmMemberIds.map(id => dmsById.get(id));
+  if (selectedClients.some(client => !client) || selectedDms.some(dm => !dm)) {
+    redirect("/admin/kpi/input/dm_client?select=1&error=client");
+  }
 
   const user = await getAdminSessionUser();
   await db.transaction(async tx => {
     for (let index = 0; index < rowCount; index++) {
-      const client = clientsById.get(clientIds[index])!;
-      const dm=dmsById.get(dmMemberIds[index])!;
+      const client = selectedClients[index]!;
+      const dm = selectedDms[index]!;
       await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,client_name,activity_date,week_start,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,assigned_user_id,dm_team_member_id,dm_person,client_type,agency_client_id,created_by) VALUES ('dm','dm_client',?,?,?,?,?,?,?, ?,0,0,0,NULL,?,?,?,?,?)", [`Performa ${client.client_name}`,client.client_name,date,date,metrics.contents[index],metrics.video_views[index],metrics.tiktok_sales[index],metrics.shopee_sales[index],dm.id,dm.full_name,client.client_type,client.id,user?.id??null]);
     }
   });
