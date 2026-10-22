@@ -1,0 +1,24 @@
+import type { ReactNode } from "react";
+import Link from "next/link";
+
+export function Eyebrow({ children }: { children: ReactNode }) {
+  return <span className="eyebrow">{children}</span>;
+}
+
+export function ContactButton({ children = "Ceritakan kebutuhanmu", href = "/brief" }: { children?: ReactNode; href?: string }) {
+  const external = href.startsWith("https://");
+  return <Link className="button" href={href} target={external ? "_blank" : undefined} rel={external ? "noreferrer" : undefined}>{children} <span aria-hidden="true">↗</span></Link>;
+}
+
+function HeroVisual({ variant }: { variant: string }) {
+  if (variant === "services") return <div className="page-visual-card service-visual"><div className="visual-card-top"><span>CAMPAIGN MAP</span><i>01</i></div><h3>Mulai dari arah<br/>yang <em>jelas.</em></h3><div className="service-map"><span>Tujuan</span><i/><span>Audiens</span><i/><span>Aktivasi</span></div><div className="visual-card-foot"><b>Strategi · distribusi · komunitas</b><span>↗</span></div></div>;
+  if (variant === "packages") return <div className="page-visual-card package-visual"><div className="visual-card-top"><span>PILIH DUKUNGAN</span><i>✳</i></div><div className="visual-package-price"><small>CAMPAIGN STARTER</small><b>Mulai sejalan</b><span>Ruang untuk tumbuh sesuai target.</span></div><div className="visual-package-line"><i/> Strategi sesuai brief <b>✓</b></div><div className="visual-package-line"><i/> Partner terkurasi <b>✓</b></div><div className="visual-package-line"><i/> Rangkuman campaign <b>✓</b></div></div>;
+  if (variant === "process") return <div className="page-visual-card process-visual"><div className="visual-card-top"><span>ALUR CAMPAIGN</span><i>4 LANGKAH</i></div><div className="visual-timeline"><div className="visual-step active"><b>01</b><span><strong>Tentukan tujuan</strong><small>Brief & audiens</small></span><i>✳</i></div><div className="visual-step active"><b>02</b><span><strong>Susun strategi</strong><small>Kanal & partner</small></span><i>↗</i></div><div className="visual-step"><b>03</b><span><strong>Aktifkan campaign</strong><small>Konten terdistribusi</small></span><i>◌</i></div><div className="visual-step"><b>04</b><span><strong>Tinjau hasil</strong><small>Laporan & langkah lanjut</small></span><i>✓</i></div></div></div>;
+  if (variant === "partners") return <div className="page-visual-card partner-visual"><div className="visual-card-top"><span>JARINGAN PARTNER</span><i>✳</i></div><div className="partner-orbit"><div className="partner-core">brand</div><span className="partner-node node-one">Kreator</span><span className="partner-node node-two">Komunitas</span><span className="partner-node node-three">Buzzer</span><span className="partner-dot dot-one"/><span className="partner-dot dot-two"/></div><div className="visual-card-foot"><b>Audiens yang tepat, cerita yang dekat.</b><span>↗</span></div></div>;
+  if (variant === "brief") return <div className="page-visual-card brief-visual"><div className="visual-card-top"><span>CAMPAIGN BRIEF</span><i>01 / 04</i></div><div className="brief-visual-title">Ceritakan<br/><em>rencanamu.</em></div><div className="brief-field"><small>Tujuan campaign</small><span>Kenalkan produk ke audiens baru</span></div><div className="brief-field-row"><div className="brief-field"><small>Audiens</small><span>Community minded</span></div><div className="brief-field"><small>Kanal</small><span>Digital</span></div></div><div className="brief-progress"><i/></div><div className="visual-card-foot"><b>Singkat saja. Tim kami bantu lanjutkan.</b><span>↗</span></div></div>;
+  return <div className="page-visual-card case-visual"><div className="visual-card-top"><span>CAMPAIGN SNAPSHOT</span><i>HASIL</i></div><div className="case-visual-head"><b>Brand story,<br/>lebih <em>terhubung.</em></b><span>+ campaign</span></div><div className="case-visual-chart"><i/><i/><i/><i/><i/><i/><i/><i/><i/></div><div className="case-visual-metrics"><div><small>REACH</small><b>Lebih luas</b></div><div><small>ENGAGEMENT</small><b>Lebih dekat</b></div></div><div className="visual-card-foot"><b>Strategi yang terasa di audiens.</b><span>↗</span></div></div>;
+}
+
+export function PageHero({ eyebrow, title, description, children, visual = "cases" }: { eyebrow: string; title: ReactNode; description: string; children?: ReactNode; visual?: "services" | "packages" | "process" | "partners" | "brief" | "cases" }) {
+  return <section className={`page-hero page-hero-${visual}`}><div className="wrap page-hero-inner"><div className="page-hero-copy"><Eyebrow>{eyebrow}</Eyebrow><h1>{title}</h1><p className="hero-copy">{description}</p>{children}</div><div className="page-hero-art" aria-hidden="true"><div className="page-hero-glow"/><div className="page-hero-orbit"/><HeroVisual variant={visual}/><span className="page-hero-spark">✳</span></div></div></section>;
+}

@@ -1,0 +1,1 @@
+import{redirect}from"next/navigation";import{verifyAdminScope,verifyAdminAnyScope,verifyAdminSession}from"@/lib/admin-auth";import AdminBriefForm from"@/components/admin-brief-form";export default async function Page(){if(!(await verifyAdminSession()))redirect("/admin/login");if(!(await verifyAdminScope("dae")))redirect("/admin");return <AdminBriefForm/>}

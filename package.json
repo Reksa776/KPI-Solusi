@@ -1,0 +1,27 @@
+{
+  "name": "solusi-sejalan",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "create-user": "node scripts/create-user.mjs",
+    "backup": "node scripts/backup.mjs",
+    "restore-backup": "node scripts/restore-backup.mjs",
+    "check:production": "node scripts/check-production.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.8",
+    "mysql2": "^3.24.6",
+    "next": "^16.1.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "~5.8.3"
+  }
+}

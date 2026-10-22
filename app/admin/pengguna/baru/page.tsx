@@ -1,0 +1,1 @@
+import{redirect}from"next/navigation";import{verifyOwnerSession}from"@/lib/admin-auth";import AdminUserForm from"@/components/admin-user-form";export default async function Page(){if(!(await verifyOwnerSession()))redirect("/admin");return <AdminUserForm/>}
