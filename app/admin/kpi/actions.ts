@@ -105,7 +105,9 @@ export async function saveDmClientBatch(form: FormData) {
   const dmPlaceholders = dmMemberIds.map(() => "?").join(",");
   const [clients] = await db.execute<(import("@/lib/db-types").RowDataPacket & { id:number; client_name:string; client_type:string })[]>(`SELECT id,client_name,client_type FROM agency_clients WHERE id IN (${clientPlaceholders})`, clientIds);
   const [dms] = await db.execute<(import("@/lib/db-types").RowDataPacket & { id:number; full_name:string })[]>(`SELECT id,full_name FROM dm_team_members WHERE id IN (${dmPlaceholders})`, dmMemberIds);
-  const clientsById = new Map(clients.map(client => [client.id, client]));
+  // agency_clients.id is MySQL BIGINT, so Prisma returns bigint while form
+  // values are numeric strings. Normalize map keys so selected clients resolve.
+  const clientsById = new Map(clients.map(client => [Number(client.id), client]));
   const dmsById = new Map(dms.map(dm => [dm.id, dm]));
   if (clientsById.size !== new Set(clientIds).size || dmsById.size !== new Set(dmMemberIds).size) redirect("/admin/kpi/input/dm_client?select=1&error=client");
 
