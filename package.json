@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3005",
     "create-user": "node scripts/create-user.mjs",
     "db": "node scripts/prisma-cli.mjs",
     "backup": "node scripts/backup.mjs",
