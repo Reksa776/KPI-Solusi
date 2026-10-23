@@ -838,3 +838,4 @@
 @media(max-width:700px){.client-add-form{align-items:stretch;flex-direction:column}.client-add-form .button{width:100%}}
 @media(max-width:700px){.client-list-toolbar{align-items:stretch;flex-direction:column}.client-list-toolbar form{display:grid;grid-template-columns:1fr auto}.client-list-toolbar input{width:100%;grid-column:1/-1}.client-list-toolbar select{min-width:0}}
 .dm-input-period .form-hint{margin:-4px 0 2px;color:var(--muted,#9aa08b);font-size:12px;line-height:1.5}
+.dm-assigned-person{margin:-10px 0 12px;color:var(--muted,#9aa08b);font-size:13px}

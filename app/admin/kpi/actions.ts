@@ -106,7 +106,7 @@ export async function saveDmClientBatch(form: FormData) {
   const weekStart = text(form, "week_start", 10);
   const rowCount = clientIds.length;
   const expectedWeek = monthWeekStartForDate(inputMode === "weekly" ? weekStart : activityDate);
-  if (!["daily", "weekly"].includes(inputMode) || !monthWeekFromStart(weekStart) || expectedWeek !== weekStart || (inputMode === "weekly" ? activityDate !== weekStart : !validDate(activityDate)) || rowCount < 1 || rowCount > 50 || dmMemberIds.length !== rowCount || metricNames.some(name => metrics[name].length !== rowCount) || clientIds.some(id => !Number.isSafeInteger(id) || id < 1) || dmMemberIds.some(id => !Number.isSafeInteger(id) || id < 1) || metricNames.some(name => metrics[name].some(value => !Number.isSafeInteger(value) || value < 0)) || new Set(clientIds.map((clientId,index) => `${dmMemberIds[index]}:${clientId}`)).size !== rowCount) redirect("/admin/kpi/input/dm_client?select=1&error=invalid");
+  if (!["daily", "weekly"].includes(inputMode) || !monthWeekFromStart(weekStart) || expectedWeek !== weekStart || (inputMode === "weekly" ? activityDate !== weekStart : !validDate(activityDate)) || rowCount < 1 || rowCount > 500 || dmMemberIds.length !== rowCount || metricNames.some(name => metrics[name].length !== rowCount) || clientIds.some(id => !Number.isSafeInteger(id) || id < 1) || dmMemberIds.some(id => !Number.isSafeInteger(id) || id < 1) || metricNames.some(name => metrics[name].some(value => !Number.isSafeInteger(value) || value < 0)) || new Set(clientIds.map((clientId,index) => `${dmMemberIds[index]}:${clientId}`)).size !== rowCount) redirect("/admin/kpi/input/dm_client?new=1&error=invalid");
 
   const db = getDb();
   const clientPlaceholders = clientIds.map(() => "?").join(",");
@@ -120,8 +120,11 @@ export async function saveDmClientBatch(form: FormData) {
   const selectedClients = clientIds.map(id => clientsById.get(id));
   const selectedDms = dmMemberIds.map(id => dmsById.get(id));
   if (selectedClients.some(client => !client) || selectedDms.some(dm => !dm)) {
-    redirect("/admin/kpi/input/dm_client?select=1&error=client");
+    redirect("/admin/kpi/input/dm_client?new=1&error=client");
   }
+  const [assignedPairs] = await db.execute<(import("@/lib/db-types").RowDataPacket & { dm_team_member_id:number; agency_client_id:number })[]>(`SELECT dm_team_member_id,agency_client_id FROM dm_client_assignments WHERE dm_team_member_id IN (${dmPlaceholders}) AND agency_client_id IN (${clientPlaceholders})`, [...dmMemberIds,...clientIds]);
+  const assignedKeys = new Set(assignedPairs.map(pair=>`${Number(pair.dm_team_member_id)}:${Number(pair.agency_client_id)}`));
+  if(assignedPairs.length!==rowCount||dmMemberIds.some((dmId,index)=>!assignedKeys.has(`${dmId}:${clientIds[index]}`)))redirect("/admin/kpi/input/dm_client?new=1&error=assignment");
 
   const user = await getAdminSessionUser();
   try {
@@ -135,7 +138,7 @@ export async function saveDmClientBatch(form: FormData) {
       }
     });
   } catch (error) {
-    if (error instanceof Error && error.message === "DM_PERIOD_CONFLICT") redirect("/admin/kpi/input/dm_client?select=1&error=period");
+    if (error instanceof Error && error.message === "DM_PERIOD_CONFLICT") redirect("/admin/kpi/input/dm_client?new=1&error=period");
     throw error;
   }
   revalidatePath("/admin/kpi");

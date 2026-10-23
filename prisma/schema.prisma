@@ -458,6 +458,7 @@ model AgencyClient {
   teamEntries TeamActivityEntry[]
   strategies  DaeStrategyDetail[]
   visits      DaeVisitDetail[]
+  dmAssignments DmClientAssignment[]
 
   @@index([clientType, updatedAt], map: "agency_clients_type_updated")
   @@index([clientName], map: "agency_clients_name")
@@ -472,8 +473,21 @@ model DmTeamMember {
   updatedAt DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
   creator   User?               @relation(fields: [createdBy], references: [id], onDelete: SetNull, map: "dm_team_member_creator_fk")
   entries   TeamActivityEntry[]
+  clientAssignments DmClientAssignment[]
 
   @@map("dm_team_members")
+}
+
+model DmClientAssignment {
+  dmTeamMemberId Int           @map("dm_team_member_id") @db.UnsignedInt
+  agencyClientId BigInt        @map("agency_client_id") @db.UnsignedBigInt
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamp(0)
+  dmTeamMember   DmTeamMember  @relation(fields: [dmTeamMemberId], references: [id], onDelete: Cascade, map: "dm_client_assignment_member_fk")
+  agencyClient   AgencyClient @relation(fields: [agencyClientId], references: [id], onDelete: Cascade, map: "dm_client_assignment_client_fk")
+
+  @@id([dmTeamMemberId, agencyClientId])
+  @@index([agencyClientId], map: "dm_client_assignment_client")
+  @@map("dm_client_assignments")
 }
 
 model TeamActivityEntry {
