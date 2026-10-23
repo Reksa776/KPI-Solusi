@@ -29,7 +29,7 @@ export async function saveTeamEntry(form: FormData) {
   const allowed = sharedDaeEntry ? await (async()=>Boolean(await verifyAdminScope("dm")||await verifyAdminScope("dae")))() : await verifyAdminScope(scope);
   if (!entryTypes.includes(type) || !allowed) redirect("/admin/kpi");
   let id = Number(text(form, "id") || 0);
-  const title = text(form, "title", 180), clientInput = text(form, "client_name", 160), daePersonInput = text(form, "dae_person", 160), date = text(form, "activity_date", 10), requestedWeek = text(form, "week_start", 10), notes = text(form, "notes", 4000);
+  const title = text(form, "title", 180), clientInput = text(form, "client_name", 160), daePersonInput = text(form, "dae_person", 160), postedDate = text(form, "activity_date", 10), requestedWeek = text(form, "week_start", 10), date = type === "dm_client" && requestedWeek ? requestedWeek : postedDate, notes = text(form, "notes", 4000);
   const weekDate = requestedWeek || date;
   const weekStart = validDate(weekDate) ? new Date(`${weekDate}T12:00:00Z`) : null;
   if (weekStart) weekStart.setUTCDate(weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7));
@@ -41,7 +41,7 @@ export async function saveTeamEntry(form: FormData) {
   const assigneeRaw = text(form, "assigned_user_id", 16), assignee = assigneeRaw ? Number(assigneeRaw) : null;
   const fields = ["contents", "video_views", "tiktok_sales", "shopee_sales", "new_clients", "strategies", "visits"] as const;
   const numbers = fields.map((field) => Number(text(form, field) || 0));
-  if (!title || !validDate(date) || !weekValue || (type.startsWith("dae_") && type !== "dae_team" && !monthWeekFromStart(weekValue)) || (type === "dae_team" && !daePersonInput) || numbers.some((number) => !Number.isSafeInteger(number) || number < 0) || selectedClientIds.length > 100 || (assignee !== null && (!Number.isSafeInteger(assignee) || assignee < 1)) || (type === "dm_client" && (!selectedAgencyClientId || !Number.isSafeInteger(selectedAgencyClientId) || selectedAgencyClientId < 1 || !dmMemberId || !Number.isSafeInteger(dmMemberId) || dmMemberId < 1)) || (type !== "dm_client" && dmMemberId !== null) || (id && (!Number.isSafeInteger(id) || id < 1)) || (type !== "dae_team" && selectedClientIds.length > 0) || (type !== "dm_client" && selectedAgencyClientId !== null)) redirect(`/admin/kpi/input/${type}?error=invalid`);
+  if (!title || !validDate(date) || !weekValue || (type.startsWith("dae_") && type !== "dae_team" && !monthWeekFromStart(weekValue)) || (type === "dm_client" && !monthWeekFromStart(weekValue)) || (type === "dae_team" && !daePersonInput) || numbers.some((number) => !Number.isSafeInteger(number) || number < 0) || selectedClientIds.length > 100 || (assignee !== null && (!Number.isSafeInteger(assignee) || assignee < 1)) || (type === "dm_client" && (!selectedAgencyClientId || !Number.isSafeInteger(selectedAgencyClientId) || selectedAgencyClientId < 1 || !dmMemberId || !Number.isSafeInteger(dmMemberId) || dmMemberId < 1)) || (type !== "dm_client" && dmMemberId !== null) || (id && (!Number.isSafeInteger(id) || id < 1)) || (type !== "dae_team" && selectedClientIds.length > 0) || (type !== "dm_client" && selectedAgencyClientId !== null)) redirect(`/admin/kpi/input/${type}?error=invalid`);
   const user = await getAdminSessionUser(), db = getDb();
   if (type === "dae_team" && !id) {
     const [existingRoster] = await db.execute<(import("@/lib/db-types").RowDataPacket & { id: number })[]>("SELECT id FROM team_activity_entries WHERE entry_type='dae_team' AND dae_person=? ORDER BY updated_at DESC,id DESC LIMIT 1", [daePersonInput]);
@@ -96,9 +96,9 @@ export async function saveDmClientBatch(form: FormData) {
   const dmMemberIds = form.getAll("dm_team_member_ids").map(value => Number(String(value)));
   const metricNames = ["contents", "video_views", "tiktok_sales", "shopee_sales"] as const;
   const metrics = Object.fromEntries(metricNames.map(name => [name, form.getAll(name).map(value => Number(String(value)))])) as Record<typeof metricNames[number], number[]>;
-  const date = text(form, "activity_date", 10);
+  const weekStart = text(form, "week_start", 10);
   const rowCount = clientIds.length;
-  if (!validDate(date) || rowCount < 1 || rowCount > 50 || dmMemberIds.length !== rowCount || metricNames.some(name => metrics[name].length !== rowCount) || clientIds.some(id => !Number.isSafeInteger(id) || id < 1) || dmMemberIds.some(id => !Number.isSafeInteger(id) || id < 1) || metricNames.some(name => metrics[name].some(value => !Number.isSafeInteger(value) || value < 0))) redirect("/admin/kpi/input/dm_client?select=1&error=invalid");
+  if (!monthWeekFromStart(weekStart) || rowCount < 1 || rowCount > 50 || dmMemberIds.length !== rowCount || metricNames.some(name => metrics[name].length !== rowCount) || clientIds.some(id => !Number.isSafeInteger(id) || id < 1) || dmMemberIds.some(id => !Number.isSafeInteger(id) || id < 1) || metricNames.some(name => metrics[name].some(value => !Number.isSafeInteger(value) || value < 0))) redirect("/admin/kpi/input/dm_client?select=1&error=invalid");
 
   const db = getDb();
   const clientPlaceholders = clientIds.map(() => "?").join(",");
@@ -120,7 +120,7 @@ export async function saveDmClientBatch(form: FormData) {
     for (let index = 0; index < rowCount; index++) {
       const client = selectedClients[index]!;
       const dm = selectedDms[index]!;
-      await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,client_name,activity_date,week_start,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,assigned_user_id,dm_team_member_id,dm_person,client_type,agency_client_id,created_by) VALUES ('dm','dm_client',?,?,?,?,?,?,?, ?,0,0,0,NULL,?,?,?,?,?)", [`Performa ${client.client_name}`,client.client_name,date,date,metrics.contents[index],metrics.video_views[index],metrics.tiktok_sales[index],metrics.shopee_sales[index],dm.id,dm.full_name,client.client_type,client.id,user?.id??null]);
+      await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,client_name,activity_date,week_start,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,assigned_user_id,dm_team_member_id,dm_person,client_type,agency_client_id,created_by) VALUES ('dm','dm_client',?,?,?,?,?,?,?, ?,0,0,0,NULL,?,?,?,?,?)", [`Performa ${client.client_name}`,client.client_name,weekStart,weekStart,metrics.contents[index],metrics.video_views[index],metrics.tiktok_sales[index],metrics.shopee_sales[index],dm.id,dm.full_name,client.client_type,client.id,user?.id??null]);
     }
   });
   revalidatePath("/admin/kpi");

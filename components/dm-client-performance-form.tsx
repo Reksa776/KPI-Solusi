@@ -3,21 +3,22 @@
 import Link from "next/link";
 import { useState } from "react";
 import { saveDmClientBatch } from "@/app/admin/kpi/actions";
+import DaeMonthWeekPicker from "@/components/dae-month-week-picker";
 
 type Client = { id:number; client_name:string; client_type:string };
 type Dm = { id:number; full_name:string };
 type Row = { key:number; clientId:string; dmId:string; contents:string; videoViews:string; tiktokSales:string; shopeeSales:string };
 
-export default function DmClientPerformanceForm({ clients, dms, initialClientId, activityDate }: { clients:Client[]; dms:Dm[]; initialClientId:number; activityDate:string }) {
+export default function DmClientPerformanceForm({ clients, dms, initialClientId, initialWeekStart }: { clients:Client[]; dms:Dm[]; initialClientId:number; initialWeekStart:string }) {
   const [rows, setRows] = useState<Row[]>([{ key:0, clientId:String(initialClientId), dmId:"", contents:"0", videoViews:"0", tiktokSales:"0", shopeeSales:"0" }]);
   const [nextKey, setNextKey] = useState(1);
   function update(key:number, field:keyof Omit<Row,"key">, value:string) {
     setRows(current => current.map(row => row.key === key ? { ...row, [field]:value } : row));
   }
   return <form action={saveDmClientBatch} className="package-edit-form dm-client-batch-form">
-    <input type="hidden" name="activity_date" value={activityDate}/>
     <section className="dm-client-performance-rows">
-      <div className="dae-strategy-section-heading"><div><h2>Data Performa Client</h2><p>Isi performa tiap client. Tambahkan baris jika ingin mencatat client lain sekaligus.</p></div></div>
+      <div className="dae-strategy-section-heading"><div><h2>Data Performa Client</h2><p>Pilih minggu laporan, lalu isi performa tiap client. Semua baris disimpan pada minggu yang sama.</p></div></div>
+      <DaeMonthWeekPicker initialWeekStart={initialWeekStart}/>
       {rows.map((row,index) => <article className="dm-client-performance-row" key={row.key}>
         <div className="dm-client-row-heading"><b>Client {index + 1}</b>{rows.length > 1&&<button type="button" className="dae-strategy-remove" aria-label={`Hapus input client ${index+1}`} onClick={() => setRows(current => current.filter(item => item.key !== row.key))}>×</button>}</div>
         <div className="form-grid"><label>Nama Client<select name="agency_client_ids" required value={row.clientId} onChange={event => update(row.key,"clientId",event.target.value)}><option value="" disabled>Pilih client</option>{clients.map(client=><option key={client.id} value={client.id}>{client.client_name} · {client.client_type}</option>)}</select></label><label>Nama DM<select name="dm_team_member_ids" required value={row.dmId} onChange={event => update(row.key,"dmId",event.target.value)}><option value="" disabled>Pilih anggota DM</option>{dms.map(dm=><option key={dm.id} value={dm.id}>{dm.full_name}</option>)}</select></label></div>
