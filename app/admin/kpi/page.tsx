@@ -145,10 +145,6 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     for(const period of periods)if(period)setPoint(period,"__all__");
     for(const entry of dmEntries){const week=periodForDate(entry.activity_date),name=entry.dm_name??"Belum ditentukan";if(!week)continue;for(const bucket of [setPoint(week,name),setPoint(week,"__all__")]){bucket.contents+=Number(entry.contents);bucket.videoViews+=Number(entry.video_views);bucket.sales+=Number(entry.tiktok_sales)+Number(entry.shopee_sales)}}
     const trends=[...trendMap.values()].sort((a,b)=>a.week.localeCompare(b.week));
-    const clientSet=new Set<string>(),mix=new Map<string,number>();
-    for(const entry of dmEntries){if(!entry.client_name)continue;const name=entry.dm_name??"Belum ditentukan";if(selectedDm&&selectedDm!==name)continue;const type=clientTypeLabels[entry.client_type??""]??entry.client_type??"Belum diklasifikasi",key=`${name}\u0000${entry.client_name}\u0000${type}`;if(clientSet.has(key))continue;clientSet.add(key);mix.set(type,(mix.get(type)??0)+1);}
-    const palette=["#d2fb07","#80b948","#46a68a","#c2d976","#7d876c","#d2aa58"];
-    const clientSlices=[...mix].map(([label,count],index)=>({label,count,color:palette[index%palette.length]})).sort((a,b)=>b.count-a.count);
     type ClientPerformance={dm:string;name:string;type:string;contents:number;videoViews:number;tiktokSales:number;shopeeSales:number};
     type ClientWeek={contents:number;videoViews:number;tiktokSales:number;shopeeSales:number};
     const performanceMap=new Map<string,ClientPerformance>();
@@ -163,7 +159,7 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     }
     const performanceRows=[...performanceMap.values()].sort((a,b)=>b.videoViews-a.videoViews||a.name.localeCompare(b.name,"id"));
     const weeklyClientRows=performanceRows.map(item=>({key:`${item.dm}\u0000${item.name}\u0000${item.type}`,dm:item.dm,name:item.name,type:item.type,weeks:clientWeekly[`${item.dm}\u0000${item.name}\u0000${item.type}`]??{}}));
-    return <div className="admin-page admin-theme-dashboard"><AdminNavigation active="kpi" teamActive="dm-overview"/><main className="admin-main admin-section-main"><AdminTopbar section="Tim" page="Overview DM"/><div className="admin-shell team-kpi-shell dae-kpi-shell"><section className="admin-heading"><div><span className="eyebrow">WORKSPACE / DM</span><h1>Overview DM</h1><p>Pantau performa konten, views video, dan omset tim DM.</p></div><div className="team-kpi-tabs"><Link className="active" href="/admin/kpi?scope=dm">DM</Link><Link href="/admin/kpi?scope=dae">DAE</Link></div></section><DmKpiOverview month={month} rows={rows} trends={trends} selectedDm={selectedDm} periods={periods} performanceRows={performanceRows} weeklyClientRows={weeklyClientRows} slices={clientSlices}/></div></main></div>;
+    return <div className="admin-page admin-theme-dashboard"><AdminNavigation active="kpi" teamActive="dm-overview"/><main className="admin-main admin-section-main"><AdminTopbar section="Tim" page="Overview DM"/><div className="admin-shell team-kpi-shell dae-kpi-shell"><section className="admin-heading"><div><span className="eyebrow">WORKSPACE / DM</span><h1>Overview DM</h1><p>Pantau performa konten, views video, dan omset tim DM.</p></div><div className="team-kpi-tabs"><Link className="active" href="/admin/kpi?scope=dm">DM</Link><Link href="/admin/kpi?scope=dae">DAE</Link></div></section><DmKpiOverview month={month} rows={rows} trends={trends} selectedDm={selectedDm} periods={periods} performanceRows={performanceRows} weeklyClientRows={weeklyClientRows}/></div></main></div>;
   }
   const outputScope: string = scope;
   return <div className="admin-page admin-theme-dashboard"><AdminNavigation active="kpi" teamActive={outputScope==="dm"?"dm-overview":"dae-overview"}/><main className="admin-main admin-section-main"><AdminTopbar section="Tim" page="KPI & aktivitas"/><div className="admin-shell team-kpi-shell">

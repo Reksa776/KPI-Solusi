@@ -716,6 +716,19 @@
 .dae-donut-layout ul{display:grid;gap:9px;min-width:135px;margin:0;padding:0;list-style:none}
 .dae-donut-layout li{display:flex;align-items:center;gap:7px;color:#aeb3a6;font-size:9px}
 .dae-donut-layout li>span{flex:1}.dae-donut-layout li>b{color:#f0f2eb;font-size:9px}
+.dm-client-sort{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 11px}
+.dm-client-sort button{min-height:27px;padding:0 9px;border:1px solid #34392f;border-radius:7px;background:#171a14;color:#aeb3a6;font:600 9px 'DM Sans',sans-serif;cursor:pointer}
+.dm-client-sort button:hover,.dm-client-sort button.active{border-color:#657b29;background:#252c16;color:#d2fb07}
+.dm-client-rank-list{display:grid;gap:9px;min-height:104px;align-content:start}
+.dm-client-rank-row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:9px}
+.dm-client-rank-number{display:grid;width:22px;height:22px;place-items:center;border:1px solid #34392f;border-radius:6px;color:#d2fb07;font-size:8px;font-weight:750}
+.dm-client-rank-info{display:grid;min-width:0;gap:5px}
+.dm-client-rank-info>div:first-child{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0}
+.dm-client-rank-info b{overflow:hidden;color:#eef0e8;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.dm-client-rank-info small{color:#858c7f;font-size:8px;white-space:nowrap}
+.dm-client-rank-track{height:4px;overflow:hidden;border-radius:5px;background:#2c3029}
+.dm-client-rank-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#80b948,#d2fb07)}
+.dm-client-rank-row>strong{color:#eef0e8;font-size:10px;font-variant-numeric:tabular-nums;white-space:nowrap}
 @media(max-width:950px){.dae-overview-grid{grid-template-columns:1fr 1fr}.dae-simple-table th,.dae-simple-table td{padding:8px 7px}.dae-overview-panel{padding:12px}}
 @media(max-width:680px){.dae-kpi-shell{width:calc(100% - 28px)}.dae-overview-toolbar{align-items:stretch;flex-direction:column}.dae-overview-toolbar form{min-width:0}.dae-best-card{min-width:0}.dae-overview-grid,.dae-bottom-grid{grid-template-columns:1fr}.dae-chart-wrap{height:190px}.dae-panel-heading h2{font-size:13px}.dae-simple-table{min-width:430px}.dae-client-panel .dae-simple-table{min-width:360px}.dae-donut-layout{justify-content:space-evenly}}
 @media(max-width:680px){.dae-funnel-table{min-width:680px}.dae-funnel-table th,.dae-funnel-table td{padding:8px 7px}.dae-funnel-table thead th:first-child,.dae-funnel-table tbody th{width:185px}}
