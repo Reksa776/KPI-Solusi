@@ -10,6 +10,20 @@ export function getMonthWeekStart(month: string, week: number): string | null {
   return start.toISOString().slice(0, 10);
 }
 
+/** Returns the configured first-of-month weekly bucket containing a date. */
+export function monthWeekStartForDate(value: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const month = value.slice(0, 7);
+  let selected: string | null = null;
+  let first: string | null = null;
+  for (let week = 1; week <= 5; week++) {
+    const start = getMonthWeekStart(month, week);
+    first ??= start;
+    if (start && start <= value) selected = start;
+  }
+  return selected ?? first;
+}
+
 export function monthWeekFromStart(value: string): MonthWeek | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const month = value.slice(0, 7);

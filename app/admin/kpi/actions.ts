@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAdminSessionUser, verifyAdminScope } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
-import { monthWeekFromStart } from "@/lib/dae-weeks";
+import { monthWeekFromStart, monthWeekStartForDate } from "@/lib/dae-weeks";
 
 const text = (form: FormData, key: string, max = 255) => String(form.get(key) ?? "").trim().slice(0, max);
 const validMonth = (value: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
@@ -29,11 +29,11 @@ export async function saveTeamEntry(form: FormData) {
   const allowed = sharedDaeEntry ? await (async()=>Boolean(await verifyAdminScope("dm")||await verifyAdminScope("dae")))() : await verifyAdminScope(scope);
   if (!entryTypes.includes(type) || !allowed) redirect("/admin/kpi");
   let id = Number(text(form, "id") || 0);
-  const title = text(form, "title", 180), clientInput = text(form, "client_name", 160), daePersonInput = text(form, "dae_person", 160), postedDate = text(form, "activity_date", 10), requestedWeek = text(form, "week_start", 10), date = type === "dm_client" && requestedWeek ? requestedWeek : postedDate, notes = text(form, "notes", 4000);
-  const weekDate = requestedWeek || date;
+  const title = text(form, "title", 180), clientInput = text(form, "client_name", 160), daePersonInput = text(form, "dae_person", 160), postedDate = text(form, "activity_date", 10), requestedWeek = text(form, "week_start", 10), inputMode = type === "dm_client" ? text(form, "input_mode", 10) || "weekly" : "weekly", date = type === "dm_client" && inputMode === "weekly" ? requestedWeek : postedDate, notes = text(form, "notes", 4000);
+  const weekDate = type === "dm_client" ? date : requestedWeek || date;
   const weekStart = validDate(weekDate) ? new Date(`${weekDate}T12:00:00Z`) : null;
-  if (weekStart) weekStart.setUTCDate(weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7));
-  const weekValue = weekStart?.toISOString().slice(0, 10) ?? "";
+  if (type !== "dm_client" && weekStart) weekStart.setUTCDate(weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7));
+  const weekValue = type === "dm_client" ? monthWeekStartForDate(date) ?? "" : weekStart?.toISOString().slice(0, 10) ?? "";
   const selectedClientIds = [...new Set(form.getAll("agency_client_ids").map(value => Number(String(value))).filter(value => Number.isSafeInteger(value) && value > 0))];
   const selectedAgencyClientIdRaw = text(form, "agency_client_id", 16);
   const selectedAgencyClientId = selectedAgencyClientIdRaw ? Number(selectedAgencyClientIdRaw) : null;
@@ -41,7 +41,7 @@ export async function saveTeamEntry(form: FormData) {
   const assigneeRaw = text(form, "assigned_user_id", 16), assignee = assigneeRaw ? Number(assigneeRaw) : null;
   const fields = ["contents", "video_views", "tiktok_sales", "shopee_sales", "new_clients", "strategies", "visits"] as const;
   const numbers = fields.map((field) => Number(text(form, field) || 0));
-  if (!title || !validDate(date) || !weekValue || (type.startsWith("dae_") && type !== "dae_team" && !monthWeekFromStart(weekValue)) || (type === "dm_client" && !monthWeekFromStart(weekValue)) || (type === "dae_team" && !daePersonInput) || numbers.some((number) => !Number.isSafeInteger(number) || number < 0) || selectedClientIds.length > 100 || (assignee !== null && (!Number.isSafeInteger(assignee) || assignee < 1)) || (type === "dm_client" && (!selectedAgencyClientId || !Number.isSafeInteger(selectedAgencyClientId) || selectedAgencyClientId < 1 || !dmMemberId || !Number.isSafeInteger(dmMemberId) || dmMemberId < 1)) || (type !== "dm_client" && dmMemberId !== null) || (id && (!Number.isSafeInteger(id) || id < 1)) || (type !== "dae_team" && selectedClientIds.length > 0) || (type !== "dm_client" && selectedAgencyClientId !== null)) redirect(`/admin/kpi/input/${type}?error=invalid`);
+  if (!title || !validDate(date) || !weekValue || (type.startsWith("dae_") && type !== "dae_team" && !monthWeekFromStart(weekValue)) || (type === "dm_client" && (!monthWeekFromStart(weekValue) || !["daily", "weekly"].includes(inputMode) || (inputMode === "daily" ? requestedWeek !== weekValue : date !== weekValue))) || (type === "dae_team" && !daePersonInput) || numbers.some((number) => !Number.isSafeInteger(number) || number < 0) || selectedClientIds.length > 100 || (assignee !== null && (!Number.isSafeInteger(assignee) || assignee < 1)) || (type === "dm_client" && (!selectedAgencyClientId || !Number.isSafeInteger(selectedAgencyClientId) || selectedAgencyClientId < 1 || !dmMemberId || !Number.isSafeInteger(dmMemberId) || dmMemberId < 1)) || (type !== "dm_client" && dmMemberId !== null) || (id && (!Number.isSafeInteger(id) || id < 1)) || (type !== "dae_team" && selectedClientIds.length > 0) || (type !== "dm_client" && selectedAgencyClientId !== null)) redirect(`/admin/kpi/input/${type}?error=invalid`);
   const user = await getAdminSessionUser(), db = getDb();
   if (type === "dae_team" && !id) {
     const [existingRoster] = await db.execute<(import("@/lib/db-types").RowDataPacket & { id: number })[]>("SELECT id FROM team_activity_entries WHERE entry_type='dae_team' AND dae_person=? ORDER BY updated_at DESC,id DESC LIMIT 1", [daePersonInput]);
@@ -68,6 +68,11 @@ export async function saveTeamEntry(form: FormData) {
     clientType = clients[0].client_type;
     agencyClientId = clients[0].id;
   }
+  if (type === "dm_client") {
+    const [conflicts] = await db.execute<(import("@/lib/db-types").RowDataPacket & { id:number; input_frequency:string; activity_date:string|Date })[]>("SELECT id,input_frequency,activity_date FROM team_activity_entries WHERE entry_type='dm_client' AND dm_team_member_id=? AND agency_client_id=? AND week_start=? AND id<>?", [dmMemberId, agencyClientId, weekValue, id || 0]);
+    const duplicate = conflicts.some(row => inputMode === "weekly" || row.input_frequency === "weekly" || String(row.activity_date).slice(0, 10) === date);
+    if (duplicate) redirect(`/admin/kpi/input/${type}?id=${id || ""}&error=period`);
+  }
   if (type === "dae_team" && selectedClientIds.length) {
     const placeholders = selectedClientIds.map(() => "?").join(",");
     const [clients] = await db.execute<(import("@/lib/db-types").RowDataPacket & { id: number; client_name: string; client_type: string })[]>(`SELECT id,client_name,client_type FROM agency_clients WHERE id IN (${placeholders}) ORDER BY client_name`, selectedClientIds);
@@ -76,14 +81,14 @@ export async function saveTeamEntry(form: FormData) {
     clientType = clients.length === 1 ? clients[0].client_type : null;
     clientIdsJson = JSON.stringify(clients.map(row => Number(row.id)));
   }
-  const values = [scope, type, title, client, date, weekValue, ...numbers, notes || null, type === "dae_team" || type === "dm_client" ? null : assignee, type === "dm_client" ? dmMemberId : null, dmPerson, daePerson, clientType, agencyClientId, clientIdsJson];
+  const values = [scope, type, title, client, date, weekValue, inputMode, ...numbers, notes || null, type === "dae_team" || type === "dm_client" ? null : assignee, type === "dm_client" ? dmMemberId : null, dmPerson, daePerson, clientType, agencyClientId, clientIdsJson];
   if (id) {
     const [existing] = await db.execute<(import("@/lib/db-types").RowDataPacket & { id:number })[]>("SELECT id FROM team_activity_entries WHERE id=? AND entry_type=? LIMIT 1", [id, type]);
     if (!existing.length) redirect(`/admin/kpi/input/${type}?error=notfound`);
-    await db.execute("UPDATE team_activity_entries SET scope=?,entry_type=?,title=?,client_name=?,activity_date=?,week_start=?,contents=?,video_views=?,tiktok_sales=?,shopee_sales=?,new_clients=?,strategies=?,visits=?,notes=?,assigned_user_id=?,dm_team_member_id=?,dm_person=?,dae_person=?,client_type=?,agency_client_id=?,agency_client_ids=? WHERE id=? AND entry_type=?", [...values, id, type]);
+    await db.execute("UPDATE team_activity_entries SET scope=?,entry_type=?,title=?,client_name=?,activity_date=?,week_start=?,input_frequency=?,contents=?,video_views=?,tiktok_sales=?,shopee_sales=?,new_clients=?,strategies=?,visits=?,notes=?,assigned_user_id=?,dm_team_member_id=?,dm_person=?,dae_person=?,client_type=?,agency_client_id=?,agency_client_ids=? WHERE id=? AND entry_type=?", [...values, id, type]);
     if (type === "dae_team") await db.execute("DELETE FROM team_activity_entries WHERE entry_type='dae_team' AND dae_person=? AND id<>?", [daePersonInput, id]);
   } else {
-    await db.execute("INSERT INTO team_activity_entries (scope,entry_type,title,client_name,activity_date,week_start,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,notes,assigned_user_id,dm_team_member_id,dm_person,dae_person,client_type,agency_client_id,agency_client_ids,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [...values, user?.id ?? null]);
+    await db.execute("INSERT INTO team_activity_entries (scope,entry_type,title,client_name,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,notes,assigned_user_id,dm_team_member_id,dm_person,dae_person,client_type,agency_client_id,agency_client_ids,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [...values, user?.id ?? null]);
   }
   revalidatePath("/admin/kpi");
   revalidatePath(`/admin/kpi/input/${type}`);
@@ -96,9 +101,12 @@ export async function saveDmClientBatch(form: FormData) {
   const dmMemberIds = form.getAll("dm_team_member_ids").map(value => Number(String(value)));
   const metricNames = ["contents", "video_views", "tiktok_sales", "shopee_sales"] as const;
   const metrics = Object.fromEntries(metricNames.map(name => [name, form.getAll(name).map(value => Number(String(value)))])) as Record<typeof metricNames[number], number[]>;
+  const inputMode = text(form, "input_mode", 10) || "weekly";
+  const activityDate = text(form, "activity_date", 10);
   const weekStart = text(form, "week_start", 10);
   const rowCount = clientIds.length;
-  if (!monthWeekFromStart(weekStart) || rowCount < 1 || rowCount > 50 || dmMemberIds.length !== rowCount || metricNames.some(name => metrics[name].length !== rowCount) || clientIds.some(id => !Number.isSafeInteger(id) || id < 1) || dmMemberIds.some(id => !Number.isSafeInteger(id) || id < 1) || metricNames.some(name => metrics[name].some(value => !Number.isSafeInteger(value) || value < 0))) redirect("/admin/kpi/input/dm_client?select=1&error=invalid");
+  const expectedWeek = monthWeekStartForDate(inputMode === "weekly" ? weekStart : activityDate);
+  if (!["daily", "weekly"].includes(inputMode) || !monthWeekFromStart(weekStart) || expectedWeek !== weekStart || (inputMode === "weekly" ? activityDate !== weekStart : !validDate(activityDate)) || rowCount < 1 || rowCount > 50 || dmMemberIds.length !== rowCount || metricNames.some(name => metrics[name].length !== rowCount) || clientIds.some(id => !Number.isSafeInteger(id) || id < 1) || dmMemberIds.some(id => !Number.isSafeInteger(id) || id < 1) || metricNames.some(name => metrics[name].some(value => !Number.isSafeInteger(value) || value < 0)) || new Set(clientIds.map((clientId,index) => `${dmMemberIds[index]}:${clientId}`)).size !== rowCount) redirect("/admin/kpi/input/dm_client?select=1&error=invalid");
 
   const db = getDb();
   const clientPlaceholders = clientIds.map(() => "?").join(",");
@@ -116,13 +124,20 @@ export async function saveDmClientBatch(form: FormData) {
   }
 
   const user = await getAdminSessionUser();
-  await db.transaction(async tx => {
-    for (let index = 0; index < rowCount; index++) {
-      const client = selectedClients[index]!;
-      const dm = selectedDms[index]!;
-      await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,client_name,activity_date,week_start,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,assigned_user_id,dm_team_member_id,dm_person,client_type,agency_client_id,created_by) VALUES ('dm','dm_client',?,?,?,?,?,?,?, ?,0,0,0,NULL,?,?,?,?,?)", [`Performa ${client.client_name}`,client.client_name,weekStart,weekStart,metrics.contents[index],metrics.video_views[index],metrics.tiktok_sales[index],metrics.shopee_sales[index],dm.id,dm.full_name,client.client_type,client.id,user?.id??null]);
-    }
-  });
+  try {
+    await db.transaction(async tx => {
+      for (let index = 0; index < rowCount; index++) {
+        const [conflicts] = await tx.execute<(import("@/lib/db-types").RowDataPacket & { input_frequency:string; activity_date:string|Date })[]>("SELECT input_frequency,activity_date FROM team_activity_entries WHERE entry_type='dm_client' AND dm_team_member_id=? AND agency_client_id=? AND week_start=? FOR UPDATE", [dmMemberIds[index], clientIds[index], weekStart]);
+        if (conflicts.some(row => inputMode === "weekly" || row.input_frequency === "weekly" || String(row.activity_date).slice(0, 10) === activityDate)) throw new Error("DM_PERIOD_CONFLICT");
+        const client = selectedClients[index]!;
+        const dm = selectedDms[index]!;
+        await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,client_name,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,assigned_user_id,dm_team_member_id,dm_person,client_type,agency_client_id,created_by) VALUES ('dm','dm_client',?,?,?,?,?,?,?,?,?,0,0,0,NULL,?,?,?,?,?)", [`Performa ${client.client_name}`,client.client_name,activityDate,weekStart,inputMode,metrics.contents[index],metrics.video_views[index],metrics.tiktok_sales[index],metrics.shopee_sales[index],dm.id,dm.full_name,client.client_type,client.id,user?.id??null]);
+      }
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "DM_PERIOD_CONFLICT") redirect("/admin/kpi/input/dm_client?select=1&error=period");
+    throw error;
+  }
   revalidatePath("/admin/kpi");
   revalidatePath("/admin/kpi/input/dm_client");
   revalidatePath("/admin/kpi/input/dm_team");

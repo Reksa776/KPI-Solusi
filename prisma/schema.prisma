@@ -484,6 +484,7 @@ model TeamActivityEntry {
   clientName      String?           @map("client_name") @db.VarChar(160)
   activityDate    DateTime          @map("activity_date") @db.Date
   weekStart       DateTime          @map("week_start") @db.Date
+  inputFrequency  String            @default("weekly") @map("input_frequency") @db.VarChar(10)
   contents        BigInt            @default(0) @db.UnsignedBigInt
   videoViews      BigInt            @default(0) @map("video_views") @db.UnsignedBigInt
   tiktokSales     BigInt            @default(0) @map("tiktok_sales") @db.UnsignedBigInt
@@ -513,6 +514,7 @@ model TeamActivityEntry {
   @@index([agencyClientId], map: "team_activity_agency_client")
   @@index([entryType, weekStart, daePerson], map: "team_activity_week_dae")
   @@index([dmTeamMemberId], map: "team_activity_dm_member")
+  @@index([entryType, dmTeamMemberId, agencyClientId, weekStart], map: "team_activity_dm_client_period")
   @@map("team_activity_entries")
 }
 
