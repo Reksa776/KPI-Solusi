@@ -844,6 +844,59 @@
 .dm-client-performance-row{padding:14px;border:1px solid #34392f;border-radius:9px;background:#111410}
 .dm-client-row-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;color:#edf0e7;font-size:13px}
 .dm-client-metrics{margin-top:12px}
+.dm-report-import{display:grid;gap:10px;margin-top:12px;padding:12px;border:1px solid #34392f;border-radius:9px;background:#171a16}
+.dm-report-import>summary{color:#d2fb07;font-size:12px;font-weight:700;cursor:pointer}
+.dm-report-import>p{margin:0;color:#aeb3a6;font-size:11px;line-height:1.5}
+.dm-report-source{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:10px;border:1px solid #2e342a;border-radius:8px;background:#131611}
+.dm-report-source>div:first-child{display:grid;gap:3px}
+.dm-report-source>div:first-child>b{color:#eef0e8;font-size:11px}
+.dm-report-source>div:first-child>small,.dm-report-filename{color:#92988b;font-size:10px}
+.dm-report-notice{grid-column:1/-1;color:#92988b;font-size:10px;line-height:1.4}
+.dm-report-error{margin:0;color:#f2a6a6!important;font-size:11px}
+.dm-report-file{display:flex;align-items:center;gap:7px;color:#d2fb07;font-size:10px;font-weight:700;cursor:pointer}
+.dm-report-file input{max-width:180px;color:#aeb3a6;font-size:10px}
+.dm-report-mappers{display:grid;grid-column:1/-1;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px}
+.dm-report-mappers label{display:grid;gap:5px;color:#cfd3c8;font-size:10px}
+.dm-report-mappers select{min-width:0;height:35px;padding:0 8px;border:1px solid #34392f;border-radius:7px;background:#111410;color:#edf0e7;font:500 11px 'DM Sans',sans-serif}
+.dm-report-mappers label>small{color:#92988b;font-size:10px}
+.dm-report-apply{justify-self:start;padding:7px 10px;border:1px solid #59622a;border-radius:7px;background:#252c16;color:#d2fb07;font:700 10px 'DM Sans',sans-serif;cursor:pointer}
+.dm-report-apply:disabled{opacity:.45;cursor:not-allowed}
+.dm-detail-actions{display:flex;flex-wrap:wrap;gap:8px}
+.dm-daily-batch-form{max-width:100%!important}
+.dm-daily-import{gap:11px}
+.dm-daily-import>h2,.dm-daily-heading h2{margin:0;color:#eef0e8;font:700 15px 'Manrope',sans-serif}
+.dm-daily-import>p,.dm-daily-heading p{margin:0;color:#9da294;font-size:11px;line-height:1.5}
+.dm-daily-source{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:10px;border:1px solid #2e342a;border-radius:8px;background:#131611}
+.dm-daily-source>label{display:grid;gap:5px;color:#eef0e8;font-size:11px}
+.dm-daily-source>label small{color:#92988b;font-size:10px}
+.dm-daily-source input{max-width:100%;color:#aeb3a6;font-size:10px}
+.dm-daily-source>.dm-report-error{grid-column:1/-1}
+.dm-import-preview{grid-column:1/-1;display:grid;grid-template-columns:minmax(110px,1fr) minmax(90px,.7fr) minmax(100px,.7fr);align-items:center;gap:0;border:1px solid #30372a;border-radius:7px;overflow:hidden;color:#bfc4b7;font-size:10px}
+.dm-import-preview>b{padding:7px 9px;background:#20251b;color:#d2fb07;font-size:10px;font-weight:700}
+.dm-import-preview>span{display:contents}
+.dm-import-preview>span>*{padding:7px 9px;border-top:1px solid #2a3024;font-size:10px;font-style:normal}
+.dm-import-preview strong{color:#f0f2ec;font-weight:650}
+.dm-import-preview small{color:#a3aa98}
+.dm-week-filter{display:flex;align-items:end;gap:10px;margin:0 0 14px;padding:12px;border:1px solid #30372a;border-radius:8px;background:#141712}
+.dm-week-filter label{display:grid;min-width:170px;gap:5px;color:#bfc4b7;font-size:10px;font-weight:650}
+.dm-week-filter input,.dm-week-filter select{height:36px;padding:0 9px;border:1px solid #34392f;border-radius:7px;background:#171a16;color:#edf0e7;font:inherit}
+.dm-week-filter>.button{min-height:36px;padding:0 13px;font-size:11px}
+.dm-week-metric-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 12px}
+.dm-week-metric-summary>div{display:grid;gap:5px;padding:10px 12px;border:1px solid #30372a;border-radius:8px;background:#151812}
+.dm-week-metric-summary span{color:#9da294;font-size:10px}
+.dm-week-metric-summary b{color:#f0f2ec;font-size:14px;font-weight:700}
+.dm-history-period{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 9px;color:#d2fb07;font-size:12px}
+.dm-history-period span{color:#9da294;font-size:10px}
+.dm-daily-rows{display:grid;gap:10px}
+.dm-daily-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.dm-daily-heading>div{display:grid;gap:4px}
+.dm-daily-heading>.button{width:auto;white-space:nowrap}
+.dm-daily-row{display:grid;gap:11px;padding:13px;border:1px solid #34392f;border-radius:9px;background:#111410}
+.dm-daily-row>header{display:flex;align-items:center;justify-content:space-between;color:#d2fb07;font-size:12px}
+.dm-daily-row>header button{display:grid;width:28px;height:28px;place-items:center;border:1px solid #493333;border-radius:7px;background:#251919;color:#f2a6a6;font-size:19px;cursor:pointer}
+.dm-daily-date{display:grid;max-width:260px;gap:6px;color:#cfd3c8;font-size:11px;font-weight:600}
+.dm-daily-date input{height:38px;padding:0 9px;border:1px solid #34392f;border-radius:7px;background:#171a16;color:#edf0e7}
+@media(max-width:600px){.dm-detail-actions{width:100%}.dm-detail-actions .button{flex:1;justify-content:center;padding-inline:8px;font-size:10px}.dm-daily-heading{align-items:flex-start;flex-direction:column}.dm-daily-heading>.button{width:100%;justify-content:center}.dm-daily-source{grid-template-columns:1fr}.dm-import-preview{grid-template-columns:minmax(90px,1fr) minmax(75px,.7fr) minmax(80px,.7fr)}.dm-week-filter{display:grid;grid-template-columns:1fr 1fr}.dm-week-filter label{min-width:0}.dm-week-filter>.button{justify-content:center}.dm-week-metric-summary{grid-template-columns:1fr 1fr}}
 .dae-strategy-number{align-self:center;display:grid;width:25px;height:25px;place-items:center;border:1px solid #414a25;border-radius:7px;background:#252c16;color:#d2fb07;font-size:11px;font-weight:700}
 .dae-strategy-row label{display:grid;gap:6px;color:#c7cbbf;font-size:10px;font-weight:600}
 .dae-strategy-row input,.dae-strategy-row select{width:100%;height:38px;padding:0 10px;border:1px solid #34392f;border-radius:7px;background:#111410;color:#edf0e7;font:500 11px 'DM Sans',sans-serif}
@@ -1083,3 +1136,222 @@
   .ranking-table th{font-size:9px}
   .ranking-table td,.ranking-table td:first-child b,.ranking-table td:last-child{font-size:11px}
 }
+
+/* KPI overview Excel export controls */
+.kpi-export-row{display:flex;justify-content:flex-end;margin:-5px 0 12px}
+.kpi-excel-export{display:flex;align-items:end;flex-wrap:wrap;gap:9px;padding:10px 12px;border:1px solid #30372a;border-radius:9px;background:#141712}
+.kpi-excel-export label{display:grid;gap:5px;color:#bfc4b7;font-size:10px;font-weight:650}
+.kpi-excel-export select,.kpi-excel-export input{height:36px;min-width:145px;padding:0 9px;border:1px solid #34392f;border-radius:7px;background:#171a16;color:#edf0e7;font:500 11px 'DM Sans',sans-serif;color-scheme:dark}
+.kpi-excel-export button{min-height:36px;padding:0 13px;border-radius:7px;font-size:11px;white-space:nowrap}
+.kpi-excel-export button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+@media(max-width:600px){.kpi-export-row{justify-content:stretch}.kpi-excel-export{width:100%;display:grid;grid-template-columns:1fr 1fr}.kpi-excel-export label:first-child{grid-column:1/-1}.kpi-excel-export select,.kpi-excel-export input{width:100%;min-width:0}.kpi-excel-export button{grid-column:1/-1;width:100%}}
+
+/* Readable typography for the DM and DAE workspace */
+.dae-kpi-shell .dashboard-kicker,
+.team-kpi-form-shell .dashboard-kicker{font-size:12px}
+.dae-kpi-shell .dae-overview-toolbar form>label,
+.dae-kpi-shell .dm-client-sort,
+.team-kpi-form-shell .package-edit-form label,
+.team-kpi-form-shell .form-grid>label{font-size:14px}
+.dae-kpi-shell .dae-overview-toolbar select,
+.dae-kpi-shell .dae-overview-toolbar input,
+.dae-kpi-shell .dae-overview-toolbar button,
+.dae-kpi-shell .dm-client-sort button,
+.team-kpi-form-shell .package-edit-form input:not([type=checkbox]),
+.team-kpi-form-shell .package-edit-form select,
+.team-kpi-form-shell .package-edit-form textarea,
+.team-kpi-form-shell .package-edit-form button{font-size:14px}
+.dae-kpi-shell .dae-panel-heading h2,
+.dae-kpi-shell .dashboard-v2-panel-heading h2,
+.dae-kpi-shell .performance-card-heading h2{font-size:19px}
+.dae-kpi-shell .dae-panel-heading>div>span,
+.dae-kpi-shell .dae-panel-heading>small,
+.dae-kpi-shell .dae-period-pill,
+.dae-kpi-shell .dae-chart-legend,
+.dae-kpi-shell .dae-table-footnote,
+.dae-kpi-shell .dm-chart-detail,
+.dae-kpi-shell .dashboard-v2-panel-heading p,
+.dae-kpi-shell .dashboard-v2-panel-heading>a,
+.dae-kpi-shell .performance-card-heading p{font-size:13px;line-height:1.55}
+.dae-kpi-shell .dae-simple-table th,
+.dae-kpi-shell .dae-funnel-table th,
+.dae-kpi-shell .admin-table th,
+.team-kpi-form-shell .admin-table th{font-size:13px}
+.dae-kpi-shell .dae-simple-table td,
+.dae-kpi-shell .dae-row-cell-link,
+.dae-kpi-shell .dae-funnel-table td,
+.dae-kpi-shell .dae-funnel-table tbody th,
+.dae-kpi-shell .admin-table td,
+.team-kpi-form-shell .admin-table td{font-size:14px}
+.dae-kpi-shell .dae-simple-table td small,
+.dae-kpi-shell .dae-grade-summary p,
+.dae-kpi-shell .dae-grade-summary small,
+.dae-kpi-shell .admin-table td small,
+.team-kpi-form-shell .admin-table td small{font-size:12px}
+.dae-kpi-shell .team-kpi-card>span{font-size:13px}
+.dae-kpi-shell .team-kpi-card>small{font-size:12px}
+.dae-kpi-shell .dashboard-v2-heading p,
+.dae-kpi-shell .dashboard-v2-empty,
+.dae-kpi-shell .dashboard-v2-note,
+.dae-kpi-shell .dashboard-table-note,
+.dae-kpi-shell .performance-card-footnote{font-size:13px;line-height:1.55}
+.dae-kpi-shell .dashboard-v2-metric>div,
+.dae-kpi-shell .dashboard-v2-metric small,
+.dae-kpi-shell .dashboard-v2-footstats span,
+.dae-kpi-shell .rank-name b,
+.dae-kpi-shell .rank-result b{font-size:14px}
+.dae-kpi-shell .rank-name small,
+.dae-kpi-shell .rank-result small,
+.dae-kpi-shell .trend-label b,
+.dae-kpi-shell .trend-label small,
+.dae-kpi-shell .trend-empty,
+.dae-kpi-shell .trend-dates{font-size:13px}
+.dae-kpi-shell .dashboard-performance-table th,
+.dae-kpi-shell .dashboard-performance-table td,
+.dae-kpi-shell .dashboard-performance-table td b,
+.dae-kpi-shell .ranking-table th,
+.dae-kpi-shell .ranking-table td,
+.dae-kpi-shell .ranking-table td:first-child b,
+.dae-kpi-shell .ranking-table td:last-child{font-size:13px}
+.dae-kpi-shell .dashboard-performance-table td small,
+.dae-kpi-shell .performance-status,
+.dae-kpi-shell .performance-chart-caption,
+.dae-kpi-shell .performance-chart-readout>div span{font-size:12px}
+.dae-kpi-shell .performance-sort-controls label,
+.dae-kpi-shell .performance-sort-controls select,
+.dae-kpi-shell .performance-card-sort label,
+.dae-kpi-shell .performance-card-sort select,
+.dae-kpi-shell .ranking-sort,
+.dae-kpi-shell .ranking-sort select{font-size:13px}
+.dae-kpi-shell .performance-content-name>b,
+.dae-kpi-shell .performance-card-values small,
+.dae-kpi-shell .performance-card-values b{font-size:13px}
+.dae-kpi-shell .dae-chart-wrap svg text{font-size:11px}
+.dae-kpi-shell .dm-chart-hover-tooltip{font-size:13px}
+.dae-kpi-shell .dm-client-pie-legend{font-size:13px}
+.dae-kpi-shell .dm-client-pie-center b{font-size:12px}
+.dae-kpi-shell .dm-client-pie-center strong{font-size:15px}
+.dae-kpi-shell .dm-client-pie-center small{font-size:11px}
+.dae-kpi-shell .dm-client-period-tools,
+.dae-kpi-shell .dm-weekly-month-filter label{font-size:13px}
+.dae-kpi-shell .dm-client-period-tools select,
+.dae-kpi-shell .dm-weekly-month-filter input,
+.dae-kpi-shell .dm-weekly-month-filter button{font-size:13px}
+.kpi-excel-export label{font-size:12px}
+.kpi-excel-export select,.kpi-excel-export input,.kpi-excel-export button{font-size:13px}
+
+@media(max-width:700px){
+  .dae-kpi-shell .dae-panel-heading h2,
+  .dae-kpi-shell .dashboard-v2-panel-heading h2,
+  .dae-kpi-shell .performance-card-heading h2{font-size:17px}
+  .dae-kpi-shell .dae-overview-toolbar form>label,
+  .dae-kpi-shell .dae-overview-toolbar button,
+  .dae-kpi-shell .dm-client-sort button,
+  .team-kpi-form-shell .package-edit-form label,
+  .team-kpi-form-shell .form-grid>label{font-size:13px}
+  .dae-kpi-shell .dae-simple-table th,
+  .dae-kpi-shell .dae-funnel-table th,
+  .dae-kpi-shell .admin-table th,
+  .team-kpi-form-shell .admin-table th{font-size:12px}
+  .dae-kpi-shell .dae-simple-table td,
+  .dae-kpi-shell .dae-row-cell-link,
+  .dae-kpi-shell .dae-funnel-table td,
+  .dae-kpi-shell .dae-funnel-table tbody th,
+  .dae-kpi-shell .admin-table td,
+  .team-kpi-form-shell .admin-table td{font-size:13px}
+  .dae-kpi-shell .dae-chart-legend,
+  .dae-kpi-shell .dae-table-footnote,
+  .dae-kpi-shell .dm-chart-detail,
+  .dae-kpi-shell .dashboard-v2-panel-heading p,
+  .dae-kpi-shell .dashboard-v2-panel-heading>a,
+  .dae-kpi-shell .dashboard-v2-heading p,
+  .dae-kpi-shell .dashboard-v2-empty,
+  .dae-kpi-shell .dashboard-v2-note,
+  .dae-kpi-shell .dashboard-table-note,
+  .dae-kpi-shell .performance-card-heading p,
+  .dae-kpi-shell .performance-card-footnote{font-size:12px}
+  .dae-kpi-shell .dae-simple-table td small,
+  .dae-kpi-shell .dae-grade-summary p,
+  .dae-kpi-shell .dae-grade-summary small,
+  .dae-kpi-shell .admin-table td small,
+  .team-kpi-form-shell .admin-table td small{font-size:11px}
+  .dae-kpi-shell .dashboard-performance-table th,
+  .dae-kpi-shell .dashboard-performance-table td,
+  .dae-kpi-shell .dashboard-performance-table td b,
+  .dae-kpi-shell .ranking-table th,
+  .dae-kpi-shell .ranking-table td,
+  .dae-kpi-shell .ranking-table td:first-child b,
+  .dae-kpi-shell .ranking-table td:last-child{font-size:12px}
+  .dae-kpi-shell .performance-sort-controls label,
+  .dae-kpi-shell .performance-sort-controls select,
+  .dae-kpi-shell .performance-card-sort label,
+  .dae-kpi-shell .performance-card-sort select,
+  .dae-kpi-shell .ranking-sort,
+  .dae-kpi-shell .ranking-sort select{font-size:12px}
+  .dae-kpi-shell .dae-chart-wrap svg text{font-size:10px}
+  .dae-kpi-shell .dm-client-pie-legend{font-size:12px}
+  .dae-kpi-shell .dm-client-pie-center strong{font-size:14px}
+  .dae-kpi-shell .dm-client-pie-center small{font-size:10px}
+  .dae-kpi-shell .dm-client-period-tools,
+  .dae-kpi-shell .dm-weekly-month-filter label,
+  .dae-kpi-shell .dm-client-period-tools select,
+  .dae-kpi-shell .dm-weekly-month-filter input,
+  .dae-kpi-shell .dm-weekly-month-filter button{font-size:12px}
+  .team-kpi-form-shell .package-edit-form input:not([type=checkbox]),
+  .team-kpi-form-shell .package-edit-form select,
+  .team-kpi-form-shell .package-edit-form textarea{font-size:16px}
+  .kpi-excel-export label{font-size:12px}
+  .kpi-excel-export select,.kpi-excel-export input,.kpi-excel-export button{font-size:13px}
+}
+
+/* Improve sidebar navigation readability for DM and DAE pages */
+.admin-page .admin-sidebar .admin-nav a,
+.admin-page .admin-sidebar .admin-sidebar-bottom a,
+.admin-page .admin-sidebar .admin-sidebar-bottom button,
+.admin-page .admin-sidebar .team-nav-trigger,
+.admin-page .admin-sidebar .team-nav-direct{font-size:14px}
+.admin-page .admin-sidebar .team-nav-subitems>a{font-size:13px;line-height:1.35}
+.admin-page .admin-sidebar .admin-nav-label{font-size:11px}
+@media(max-width:700px){
+  .admin-page .admin-sidebar .admin-nav a,
+  .admin-page .admin-sidebar .admin-sidebar-bottom a,
+  .admin-page .admin-sidebar .admin-sidebar-bottom button,
+  .admin-page .admin-sidebar .team-nav-trigger,
+  .admin-page .admin-sidebar .team-nav-direct{font-size:13px}
+  .admin-page .admin-sidebar .team-nav-subitems>a{font-size:12px}
+}
+@media(max-width:620px){
+  .admin-page .admin-sidebar .admin-nav a,
+  .admin-page .admin-sidebar .admin-sidebar-bottom a,
+  .admin-page .admin-sidebar .admin-sidebar-bottom button{font-size:0}
+}
+.dae-chart-point{cursor:pointer}
+.dae-chart-point:focus{outline:none}
+.dae-chart-point:focus-visible circle{stroke:#f4f6ee;stroke-width:2}
+.dae-chart-hover-tooltip{position:absolute;z-index:3;top:8px;display:grid;min-width:180px;gap:6px;padding:10px 12px;transform:translateX(-50%);border:1px solid #414a25;border-radius:9px;background:rgba(17,20,16,.96);color:#e7e9e1;box-shadow:0 8px 24px #0008;font-size:13px;pointer-events:none}
+.dae-chart-hover-tooltip>b{padding-bottom:4px;border-bottom:1px solid #34392f;color:#f2f4eb;font-size:13px}
+.dae-chart-hover-tooltip>span{display:grid;grid-template-columns:8px auto 1fr;align-items:center;gap:7px;color:#c3c8bb;font-size:12px}
+.dae-chart-hover-tooltip i{width:8px;height:8px;border-radius:50%}
+.dae-chart-hover-tooltip i.client{background:#d2fb07}.dae-chart-hover-tooltip i.strategy{background:#80b948}.dae-chart-hover-tooltip i.visit{background:#46a68a}
+.dae-chart-hover-tooltip strong{justify-self:end;color:#f0f2eb;font-variant-numeric:tabular-nums}
+@media(max-width:700px){.dae-chart-hover-tooltip{min-width:160px;padding:8px 10px}.dae-chart-hover-tooltip>b{font-size:12px}.dae-chart-hover-tooltip>span{font-size:11px}}
+.dae-donut-stage{position:relative;display:grid;place-items:center}
+.dae-donut{appearance:none;padding:0;border:0;cursor:pointer;transition:filter .16s ease,transform .16s ease}
+.dae-donut:hover{filter:brightness(1.08);transform:scale(1.025)}
+.dae-donut:focus-visible{outline:2px solid #d2fb07;outline-offset:4px}
+.dae-donut-center{display:grid;width:72px;height:72px;align-content:center;justify-items:center;gap:2px;padding:5px;border-radius:50%;background:#171a16;text-align:center}
+.dae-donut-center b{max-width:62px;overflow:hidden;color:#f2f4eb;font:700 11px/1.15 'Manrope',sans-serif;text-overflow:ellipsis;white-space:nowrap}
+.dae-donut-center strong{color:#d2fb07;font:700 14px/1.1 'Manrope',sans-serif}
+.dae-donut-center small{color:#aab09f;font-size:10px}
+.dae-donut-tooltip{position:fixed;z-index:100;display:grid;min-width:145px;gap:3px;padding:8px 10px;border:1px solid #414a25;border-radius:8px;background:rgba(17,20,16,.96);color:#f2f4eb;text-align:center;box-shadow:0 8px 24px #0008;pointer-events:none}
+.dae-donut-tooltip b{font-size:12px}.dae-donut-tooltip strong{color:#d2fb07;font-size:13px}.dae-donut-tooltip small{color:#aab09f;font-size:11px}
+.dae-donut-layout li>b{display:grid;justify-items:end;gap:2px}
+.dae-donut-layout li>b small{color:#8f9688;font-size:10px;font-weight:500}
+.dae-weekly-grade-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin-top:10px}
+.dae-weekly-grade{display:grid;min-width:0;gap:4px;justify-items:center;padding:9px 5px;border:1px solid #30352b;border-radius:8px;background:#141711;text-align:center}
+.dae-weekly-grade>span{color:#e5e8de;font-size:11px;font-weight:650}
+.dae-weekly-grade>small{max-width:100%;overflow:hidden;color:#92988b;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.dae-weekly-grade-value{display:grid;width:30px;height:30px;place-items:center;border:1px solid #414a25;border-radius:50%;background:#252c16;color:#d2fb07;font:800 14px 'Manrope',sans-serif}
+.dae-grade-average-buruk{font-size:13px}
+.dae-weekly-grade-value.grade-a{color:#d2fb07}.dae-weekly-grade-value.grade-b{color:#b8d887}.dae-weekly-grade-value.grade-c{color:#e2c65f}.dae-weekly-grade-value.grade-buruk,.dae-weekly-grade-value.is-empty{color:#a1a699}
+@media(max-width:700px){.dae-weekly-grade-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.dae-weekly-grade>span{font-size:12px}.dae-weekly-grade>small{font-size:11px}}

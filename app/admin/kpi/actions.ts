@@ -137,8 +137,8 @@ export async function saveDmClientBatch(form: FormData) {
   try {
     await db.transaction(async tx => {
       for (let index = 0; index < rowCount; index++) {
-        const [conflicts] = await tx.execute<(import("@/lib/db-types").RowDataPacket & { input_frequency:string; activity_date:string|Date })[]>("SELECT input_frequency,activity_date FROM team_activity_entries WHERE entry_type='dm_client' AND dm_team_member_id=? AND agency_client_id=? AND week_start=? FOR UPDATE", [dmMemberIds[index], clientIds[index], weekStart]);
-        if (conflicts.some(row => inputMode === "weekly" || row.input_frequency === "weekly" || String(row.activity_date).slice(0, 10) === activityDate)) throw new Error("DM_PERIOD_CONFLICT");
+        const [conflicts] = await tx.execute<(import("@/lib/db-types").RowDataPacket & { input_frequency:string; activity_date:string|Date;video_views:number|string;tiktok_sales:number|string;shopee_sales:number|string })[]>("SELECT input_frequency,activity_date,video_views,tiktok_sales,shopee_sales FROM team_activity_entries WHERE entry_type='dm_client' AND dm_team_member_id=? AND agency_client_id=? AND week_start=? FOR UPDATE", [dmMemberIds[index], clientIds[index], weekStart]);
+        if (conflicts.some(row => inputMode === "weekly" || (row.input_frequency === "weekly" && (Number(row.video_views)>0||Number(row.tiktok_sales)>0||Number(row.shopee_sales)>0)) || (row.input_frequency === "daily" && String(row.activity_date).slice(0, 10) === activityDate))) throw new Error("DM_PERIOD_CONFLICT");
         const client = selectedClients[index]!;
         const dm = selectedDms[index]!;
         await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,client_name,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,assigned_user_id,dm_team_member_id,dm_person,client_type,agency_client_id,created_by) VALUES ('dm','dm_client',?,?,?,?,?,?,?,?,?,0,0,0,NULL,?,?,?,?,?)", [`Performa ${client.client_name}`,client.client_name,activityDate,weekStart,inputMode,metrics.contents[index],metrics.video_views[index],metrics.tiktok_sales[index],metrics.shopee_sales[index],dm.id,dm.full_name,client.client_type,client.id,user?.id??null]);
@@ -152,6 +152,54 @@ export async function saveDmClientBatch(form: FormData) {
   revalidatePath("/admin/kpi/input/dm_client");
   revalidatePath("/admin/kpi/input/dm_team");
   redirect(pairUrl(undefined, true));
+}
+
+export async function saveDmClientDailyReports(form: FormData) {
+  if (!(await verifyAdminScope("dm"))) redirect("/admin/kpi");
+  const dmId=Number(text(form,"dm_team_member_id",16)),clientId=Number(text(form,"agency_client_id",16));
+  const dates=form.getAll("report_dates").map(value=>String(value)),metricNames=["contents","video_views","tiktok_sales","shopee_sales"] as const;
+  const metrics=Object.fromEntries(metricNames.map(name=>[name,form.getAll(name).map(value=>String(value)===""?0:Number(String(value)))])) as Record<typeof metricNames[number],number[]>;
+  const detail=`/admin/kpi/input/dm_client?dm_id=${dmId}&client_id=${clientId}`,fail=(error:string):never=>redirect(Number.isSafeInteger(dmId)&&dmId>0&&Number.isSafeInteger(clientId)&&clientId>0?`${detail}&entry_new=multi&error=${error}`:`/admin/kpi/input/dm_client?error=${error}`);
+  const validCalendarDate=(value:string)=>{if(!validDate(value))return false;const parsed=new Date(`${value}T00:00:00Z`);return !Number.isNaN(parsed.valueOf())&&parsed.toISOString().slice(0,10)===value};
+  if(!Number.isSafeInteger(dmId)||dmId<1||!Number.isSafeInteger(clientId)||clientId<1||dates.length<1||dates.length>100||new Set(dates).size!==dates.length||dates.some(date=>!validCalendarDate(date))||metricNames.some(name=>metrics[name].length!==dates.length||metrics[name].some(value=>!Number.isSafeInteger(value)||value<0)))fail("invalid");
+  const db=getDb();
+  const [[pairs],[members],[clients]]=await Promise.all([
+    db.execute<(import("@/lib/db-types").RowDataPacket&{dm_team_member_id:number;agency_client_id:number})[]>("SELECT dm_team_member_id,agency_client_id FROM dm_client_assignments WHERE dm_team_member_id=? AND agency_client_id=? LIMIT 1",[dmId,clientId]),
+    db.execute<(import("@/lib/db-types").RowDataPacket&{id:number;full_name:string})[]>("SELECT id,full_name FROM dm_team_members WHERE id=? LIMIT 1",[dmId]),
+    db.execute<(import("@/lib/db-types").RowDataPacket&{id:number;client_name:string;client_type:string})[]>("SELECT id,client_name,client_type FROM agency_clients WHERE id=? LIMIT 1",[clientId]),
+  ]);
+  if(!pairs.length)fail("assignment");if(!members.length||!clients.length)fail("missing");
+  const user=await getAdminSessionUser();
+  try{await db.transaction(async tx=>{for(let index=0;index<dates.length;index++){
+    const weekStart=monthWeekStartForDate(dates[index]);if(!weekStart)throw new Error("DAILY_DATE_INVALID");
+    const [conflicts]=await tx.execute<(import("@/lib/db-types").RowDataPacket&{input_frequency:string;activity_date:string|Date;video_views:number|string; tiktok_sales:number|string;shopee_sales:number|string})[]>("SELECT input_frequency,activity_date,video_views,tiktok_sales,shopee_sales FROM team_activity_entries WHERE entry_type='dm_client' AND dm_team_member_id=? AND agency_client_id=? AND week_start=? FOR UPDATE",[dmId,clientId,weekStart]);
+    if(conflicts.some(row=>(row.input_frequency==="weekly"&&(Number(row.video_views)>0||Number(row.tiktok_sales)>0||Number(row.shopee_sales)>0))||(row.input_frequency==="daily"&&String(row.activity_date).slice(0,10)===dates[index])))throw new Error("DM_PERIOD_CONFLICT");
+    await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,client_name,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,assigned_user_id,dm_team_member_id,dm_person,client_type,agency_client_id,created_by) VALUES ('dm','dm_client',?,?,?,?, 'daily', ?,?,?,?,0,0,0,NULL,?,?,?,?,?)",[`Performa ${clients[0].client_name}`,clients[0].client_name,dates[index],weekStart,metrics.contents[index],metrics.video_views[index],metrics.tiktok_sales[index],metrics.shopee_sales[index],members[0].id,members[0].full_name,clients[0].client_type,clients[0].id,user?.id??null]);
+  }})}catch(error){if(error instanceof Error&&error.message==="DM_PERIOD_CONFLICT")fail("period");throw error}
+  revalidatePath("/admin/kpi");revalidatePath("/admin/kpi/input/dm_client");revalidatePath("/admin/kpi/input/dm_team");
+  redirect(`${detail}&saved=1`);
+}
+
+export async function saveDmWeeklyContent(form: FormData) {
+  if (!(await verifyAdminScope("dm"))) redirect("/admin/kpi");
+  const dmId=Number(text(form,"dm_team_member_id",16)),clientId=Number(text(form,"agency_client_id",16)),weekStart=text(form,"week_start",10),contents=Number(text(form,"contents",16));
+  const detail=`/admin/kpi/input/dm_client?dm_id=${dmId}&client_id=${clientId}`,fail=(error:string):never=>redirect(Number.isSafeInteger(dmId)&&dmId>0&&Number.isSafeInteger(clientId)&&clientId>0?`${detail}&content_week=${weekStart}&error=${error}`:`/admin/kpi/input/dm_client?error=${error}`);
+  if(!Number.isSafeInteger(dmId)||dmId<1||!Number.isSafeInteger(clientId)||clientId<1||monthWeekFromStart(weekStart)?.weekStart!==weekStart||!Number.isSafeInteger(contents)||contents<0)fail("invalid");
+  const db=getDb();
+  const [[pairs],[members],[clients]]=await Promise.all([
+    db.execute<(import("@/lib/db-types").RowDataPacket&{dm_team_member_id:number;agency_client_id:number})[]>("SELECT dm_team_member_id,agency_client_id FROM dm_client_assignments WHERE dm_team_member_id=? AND agency_client_id=? LIMIT 1",[dmId,clientId]),
+    db.execute<(import("@/lib/db-types").RowDataPacket&{id:number;full_name:string})[]>("SELECT id,full_name FROM dm_team_members WHERE id=? LIMIT 1",[dmId]),
+    db.execute<(import("@/lib/db-types").RowDataPacket&{id:number;client_name:string;client_type:string})[]>("SELECT id,client_name,client_type FROM agency_clients WHERE id=? LIMIT 1",[clientId]),
+  ]);
+  if(!pairs.length)fail("assignment");if(!members.length||!clients.length)fail("missing");
+  const user=await getAdminSessionUser();
+  await db.transaction(async tx=>{
+    const [weekly]=await tx.execute<(import("@/lib/db-types").RowDataPacket&{id:number})[]>("SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='weekly' AND dm_team_member_id=? AND agency_client_id=? AND week_start=? ORDER BY id LIMIT 1 FOR UPDATE",[dmId,clientId,weekStart]);
+    if(weekly.length){await tx.execute("UPDATE team_activity_entries SET contents=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND entry_type='dm_client'",[contents,weekly[0].id]);return;}
+    await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,client_name,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,assigned_user_id,dm_team_member_id,dm_person,client_type,agency_client_id,created_by) VALUES ('dm','dm_client',?,?,?,?, 'weekly', ?,0,0,0,0,0,0,NULL,?,?,?,?,?)",[`Performa ${clients[0].client_name}`,clients[0].client_name,weekStart,weekStart,contents,members[0].id,members[0].full_name,clients[0].client_type,clients[0].id,user?.id??null]);
+  });
+  revalidatePath("/admin/kpi");revalidatePath("/admin/kpi/input/dm_client");
+  redirect(`${detail}&saved=1`);
 }
 
 export async function deleteTeamEntry(form: FormData) {
