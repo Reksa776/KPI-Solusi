@@ -40,6 +40,5 @@ export default function TeamSubnavigationMenu({ canDM, canDAE, owner, scope, act
   return <div className="team-sidebar-navigation" aria-label="Navigasi DM dan DAE">
     {dmHasDropdown ? <Dropdown label="DM" icon="◉" items={dmItems} active={active} openByDefault={dmOpen}/> : <Link className={`team-nav-direct${active === "dm-overview" ? " active" : ""}`} href="/admin/kpi?scope=dm"><span className="team-nav-icon">◉</span>DM (Overview)</Link>}
     {daeHasDropdown ? <Dropdown label="DAE" icon="◌" items={visibleDaeItems} active={active} openByDefault={daeOpen}/> : <Link className={`team-nav-direct${active === "dae-overview" ? " active" : ""}`} href="/admin/kpi?scope=dae"><span className="team-nav-icon">◌</span>DAE (Overview)</Link>}
-    {canDAE && <Link className={`team-nav-direct${active === "dae-client" ? " active" : ""}`} href="/admin/kpi/input/dae_client"><span className="team-nav-icon">＋</span>Input Data Client</Link>}
   </div>;
 }
