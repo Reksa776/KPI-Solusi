@@ -3,7 +3,7 @@ import { useMemo, useState, type PointerEvent } from "react";
 type Point={day:string;dmContent:number;daeConversions:number;clientRevenue:number};
 const money=(value:number)=>"Rp "+value.toLocaleString("id-ID");
 const shortMoney=(value:number)=>new Intl.NumberFormat("id-ID",{notation:"compact",maximumFractionDigits:1}).format(value);
-const lines=[{key:"dmContent",label:"Konten terbit · DM",color:"#d2fb07",format:(v:number)=>v.toLocaleString("id-ID")+" konten"},{key:"daeConversions",label:"Brief jadi campaign · DAE",color:"#8fd4b2",format:(v:number)=>v.toLocaleString("id-ID")+" konversi"},{key:"clientRevenue",label:"Omset client",color:"#f2b45c",format:(v:number)=>money(v)}] as const;
+const lines=[{key:"dmContent",label:"Konten · DM",color:"#d2fb07",format:(v:number)=>v.toLocaleString("id-ID")+" konten"},{key:"daeConversions",label:"Aktivitas · DAE",color:"#8fd4b2",format:(v:number)=>v.toLocaleString("id-ID")+" aktivitas"},{key:"clientRevenue",label:"Omset · Client",color:"#f2b45c",format:(v:number)=>money(v)}] as const;
 export default function DashboardPerformanceChart({points}:{points:Point[]}){
  const [selected,setSelected]=useState(Math.max(0,points.length-1));
  const geometry=useMemo(()=>lines.map(line=>{const vals=points.map(p=>p[line.key]),max=Math.max(1,...vals);const xy=vals.map((v,i)=>({x:40+i*(920/Math.max(1,points.length-1)),y:204-(v/max)*170}));return{...line,vals,xy,points:xy.map(p=>p.x+","+p.y).join(" ")}}),[points]);
