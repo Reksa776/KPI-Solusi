@@ -92,6 +92,7 @@ export async function saveTeamEntry(form: FormData) {
   }
   revalidatePath("/admin/kpi");
   revalidatePath(`/admin/kpi/input/${type}`);
+  if (type === "dm_client" && dmMemberId && selectedAgencyClientId) redirect(`/admin/kpi/input/dm_client?dm_id=${dmMemberId}&client_id=${selectedAgencyClientId}&saved=1`);
   redirect(`/admin/kpi/input/${type}?saved=1`);
 }
 
@@ -99,6 +100,12 @@ export async function saveDmClientBatch(form: FormData) {
   if (!(await verifyAdminScope("dm"))) redirect("/admin/kpi");
   const clientIds = form.getAll("agency_client_ids").map(value => Number(String(value)));
   const dmMemberIds = form.getAll("dm_team_member_ids").map(value => Number(String(value)));
+  const fallback = "/admin/kpi/input/dm_client?new=1&error=invalid";
+  const pairUrl = (error?: string, saved = false) => {
+    const clientId = clientIds[0], dmId = dmMemberIds[0];
+    if (!Number.isSafeInteger(clientId) || clientId < 1 || !Number.isSafeInteger(dmId) || dmId < 1) return fallback;
+    return `/admin/kpi/input/dm_client?dm_id=${dmId}&client_id=${clientId}${saved ? "&saved=1" : "&entry_new=1"}${error ? `&error=${error}` : ""}`;
+  };
   const metricNames = ["contents", "video_views", "tiktok_sales", "shopee_sales"] as const;
   const metrics = Object.fromEntries(metricNames.map(name => [name, form.getAll(name).map(value => Number(String(value)))])) as Record<typeof metricNames[number], number[]>;
   const inputMode = text(form, "input_mode", 10) || "weekly";
@@ -106,7 +113,7 @@ export async function saveDmClientBatch(form: FormData) {
   const weekStart = text(form, "week_start", 10);
   const rowCount = clientIds.length;
   const expectedWeek = monthWeekStartForDate(inputMode === "weekly" ? weekStart : activityDate);
-  if (!["daily", "weekly"].includes(inputMode) || !monthWeekFromStart(weekStart) || expectedWeek !== weekStart || (inputMode === "weekly" ? activityDate !== weekStart : !validDate(activityDate)) || rowCount < 1 || rowCount > 500 || dmMemberIds.length !== rowCount || metricNames.some(name => metrics[name].length !== rowCount) || clientIds.some(id => !Number.isSafeInteger(id) || id < 1) || dmMemberIds.some(id => !Number.isSafeInteger(id) || id < 1) || metricNames.some(name => metrics[name].some(value => !Number.isSafeInteger(value) || value < 0)) || new Set(clientIds.map((clientId,index) => `${dmMemberIds[index]}:${clientId}`)).size !== rowCount) redirect("/admin/kpi/input/dm_client?new=1&error=invalid");
+  if (!["daily", "weekly"].includes(inputMode) || !monthWeekFromStart(weekStart) || expectedWeek !== weekStart || (inputMode === "weekly" ? activityDate !== weekStart : !validDate(activityDate)) || rowCount < 1 || rowCount > 500 || dmMemberIds.length !== rowCount || metricNames.some(name => metrics[name].length !== rowCount) || clientIds.some(id => !Number.isSafeInteger(id) || id < 1) || dmMemberIds.some(id => !Number.isSafeInteger(id) || id < 1) || metricNames.some(name => metrics[name].some(value => !Number.isSafeInteger(value) || value < 0)) || new Set(clientIds.map((clientId,index) => `${dmMemberIds[index]}:${clientId}`)).size !== rowCount) redirect(pairUrl("invalid"));
 
   const db = getDb();
   const clientPlaceholders = clientIds.map(() => "?").join(",");
@@ -120,11 +127,11 @@ export async function saveDmClientBatch(form: FormData) {
   const selectedClients = clientIds.map(id => clientsById.get(id));
   const selectedDms = dmMemberIds.map(id => dmsById.get(id));
   if (selectedClients.some(client => !client) || selectedDms.some(dm => !dm)) {
-    redirect("/admin/kpi/input/dm_client?new=1&error=client");
+    redirect(pairUrl("missing"));
   }
   const [assignedPairs] = await db.execute<(import("@/lib/db-types").RowDataPacket & { dm_team_member_id:number; agency_client_id:number })[]>(`SELECT dm_team_member_id,agency_client_id FROM dm_client_assignments WHERE dm_team_member_id IN (${dmPlaceholders}) AND agency_client_id IN (${clientPlaceholders})`, [...dmMemberIds,...clientIds]);
   const assignedKeys = new Set(assignedPairs.map(pair=>`${Number(pair.dm_team_member_id)}:${Number(pair.agency_client_id)}`));
-  if(assignedPairs.length!==rowCount||dmMemberIds.some((dmId,index)=>!assignedKeys.has(`${dmId}:${clientIds[index]}`)))redirect("/admin/kpi/input/dm_client?new=1&error=assignment");
+  if(assignedPairs.length!==rowCount||dmMemberIds.some((dmId,index)=>!assignedKeys.has(`${dmId}:${clientIds[index]}`)))redirect(pairUrl("assignment"));
 
   const user = await getAdminSessionUser();
   try {
@@ -138,17 +145,18 @@ export async function saveDmClientBatch(form: FormData) {
       }
     });
   } catch (error) {
-    if (error instanceof Error && error.message === "DM_PERIOD_CONFLICT") redirect("/admin/kpi/input/dm_client?new=1&error=period");
+    if (error instanceof Error && error.message === "DM_PERIOD_CONFLICT") redirect(pairUrl("period"));
     throw error;
   }
   revalidatePath("/admin/kpi");
   revalidatePath("/admin/kpi/input/dm_client");
   revalidatePath("/admin/kpi/input/dm_team");
-  redirect("/admin/kpi/input/dm_client?saved=1");
+  redirect(pairUrl(undefined, true));
 }
 
 export async function deleteTeamEntry(form: FormData) {
   const id = Number(text(form, "id")), type = text(form, "entry_type");
+  const returnDmId = Number(text(form, "return_dm_id", 16)), returnClientId = Number(text(form, "return_client_id", 16));
   const scope = type.startsWith("dm_") ? "dm" : "dae";
   const sharedDaeEntry = ["dae_team", "dae_strategy", "dae_visit"].includes(type);
   const allowed = sharedDaeEntry ? await (async()=>Boolean(await verifyAdminScope("dm")||await verifyAdminScope("dae")))() : await verifyAdminScope(scope);
@@ -161,5 +169,6 @@ export async function deleteTeamEntry(form: FormData) {
   } else await getDb().execute("DELETE FROM team_activity_entries WHERE id=? AND entry_type=?", [id, type]);
   revalidatePath("/admin/kpi");
   revalidatePath(`/admin/kpi/input/${type}`);
+  if (type === "dm_client" && Number.isSafeInteger(returnDmId) && returnDmId > 0 && Number.isSafeInteger(returnClientId) && returnClientId > 0) redirect(`/admin/kpi/input/dm_client?dm_id=${returnDmId}&client_id=${returnClientId}&deleted=1`);
   redirect(`/admin/kpi/input/${type}?deleted=1`);
 }

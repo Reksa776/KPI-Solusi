@@ -675,6 +675,41 @@
 .dm-client-table td small,.dm-weekly-table td small{display:block;margin-top:3px;color:#858c7f;font-size:8px}
 .dm-client-table td:nth-child(n+3){font-variant-numeric:tabular-nums}
 .dm-weekly-table{min-width:900px;white-space:normal}
+.dm-weekly-dm-table{min-width:1000px}
+.dm-weekly-summary-table{min-width:760px}
+.dm-weekly-summary-table th:first-child,.dm-weekly-summary-table td:first-child{min-width:120px;text-align:left}
+.dm-weekly-summary-table th:not(:first-child),.dm-weekly-summary-table td:not(:first-child){min-width:140px}
+.dm-weekly-summary-table td:not(:first-child){font-variant-numeric:tabular-nums}
+.dm-sort-button{display:inline-flex;align-items:center;gap:5px;padding:3px 0;border:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;white-space:nowrap}
+.dm-sort-button:hover{color:#d2fb07}
+.dm-sort-button span{color:#d2fb07;font-size:11px}
+.dae-kpi-panel .dae-simple-table th{white-space:nowrap}
+.dm-chart-legend-three{justify-content:space-between;gap:16px}
+.dm-chart-detail{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;border:1px solid #34392f;border-radius:8px;background:#141712}
+.dm-chart-detail b{color:#f0f2eb}
+.dm-chart-detail span{color:#d0d5c8;font-variant-numeric:tabular-nums}
+.dm-chart-date-select,.dm-client-period-tools label{display:flex;align-items:center;gap:7px;color:#aeb3a6;font-size:11px}
+.dm-chart-date-select select,.dm-client-period-tools select{height:32px;max-width:150px;padding:0 9px;border:1px solid #34392f;border-radius:7px;background:#111410;color:#edf0e7;font:600 11px 'DM Sans',sans-serif}
+.dm-chart-point{cursor:pointer;outline:none}
+.dm-chart-point:focus-visible circle{stroke:#fff;stroke-width:2}
+.dm-client-period-tools{display:flex;align-items:center;gap:9px}
+.dm-client-pie{padding:0;appearance:none;color:inherit;cursor:pointer;transition:filter .18s,transform .18s}
+.dm-client-pie:hover{filter:brightness(1.08);transform:scale(1.025)}
+.dm-client-pie:focus-visible{outline:2px solid #d2fb07;outline-offset:4px}
+.dm-client-pie-center{display:grid;width:104px;height:104px;align-content:center;justify-items:center;gap:3px;overflow:hidden;padding:8px;border-radius:50%;background:#171a16;text-align:center;pointer-events:none}
+.dm-client-pie-center b{display:-webkit-box;max-width:100%;overflow:hidden;color:#f2f4eb;font:700 10px/1.3 'Manrope',sans-serif;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.dm-client-pie-center strong{color:#d2fb07;font:700 15px 'Manrope',sans-serif}
+.dm-client-pie-center small{color:#92988b;font-size:9px}
+.dm-client-pie-legend li{padding:0}
+.dm-client-pie-legend li>button{display:grid;width:100%;grid-template-columns:8px minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 2px;border:0;border-bottom:1px solid #292e26;background:transparent;color:#cfd3c8;font:500 11px 'DM Sans',sans-serif;text-align:left;cursor:pointer}
+.dm-client-pie-legend li>button:hover,.dm-client-pie-legend li>button.selected{background:#202519;color:#f0f2eb}
+.dm-client-pie-legend li>button>b{display:grid;justify-items:end;gap:2px;color:#eef0e8;font-size:11px;font-variant-numeric:tabular-nums}
+.dm-client-pie-legend li>button>b small{color:#92988b;font-size:10px;font-weight:500}
+.dm-weekly-month-filter{display:flex;align-items:end;gap:7px;margin:0}
+.dm-weekly-month-filter label{display:grid;gap:4px;color:#aeb3a6;font-size:10px}
+.dm-weekly-month-filter input{height:31px;padding:0 8px;border:1px solid #34392f;border-radius:7px;background:#111410;color:#edf0e7;color-scheme:dark;font:500 11px 'DM Sans',sans-serif}
+.dm-weekly-month-filter button{height:31px;padding:0 10px;border:0;border-radius:7px;background:#d2fb07;color:#192014;font:700 10px 'DM Sans',sans-serif;cursor:pointer}
+@media(max-width:680px){.dm-client-period-tools{align-items:flex-end;flex-direction:column}.dm-client-period-tools select{max-width:120px}.dm-weekly-month-filter label{font-size:9px}.dm-chart-detail{align-items:flex-start;flex-direction:column;gap:5px}}
 .dm-weekly-table th:first-child,.dm-weekly-table td:first-child{min-width:145px}
 .dm-weekly-table th{min-width:145px;text-align:center}
 .dm-weekly-table th:nth-child(2){text-align:left}
@@ -691,8 +726,13 @@
 .dae-grade-average{display:grid;width:68px;height:68px;flex:0 0 68px;place-items:center;border:1px solid #414a25;border-radius:50%;background:#252c16;color:#d2fb07;font:800 25px 'Manrope',sans-serif}
 .dae-grade-empty{display:grid;min-height:103px;place-items:center;border:1px dashed #34392f;border-radius:9px;color:#92988b;font-size:10px}
 .dae-empty{padding:18px 10px!important;color:#858c7f!important;text-align:center}
-.dae-chart-wrap{height:205px}
+.dae-chart-wrap{position:relative;height:205px}
 .dae-chart-wrap svg{display:block;width:100%;height:100%;overflow:visible}
+.dm-chart-hover-tooltip{position:absolute;z-index:2;top:8px;display:grid;min-width:165px;gap:5px;padding:9px 11px;transform:translateX(-50%);border:1px solid #414a25;border-radius:8px;background:#111410eF;color:#e7e9e1;box-shadow:0 8px 24px #0008;font-size:10px;pointer-events:none}
+.dm-chart-hover-tooltip>b{padding-bottom:3px;border-bottom:1px solid #34392f;color:#f2f4eb;font-size:11px}
+.dm-chart-hover-tooltip>span{display:grid;grid-template-columns:7px auto 1fr;align-items:center;gap:6px;color:#aeb3a6}
+.dm-chart-hover-tooltip i{width:7px;height:7px;border-radius:50%}
+.dm-chart-hover-tooltip strong{justify-self:end;color:#f0f2eb;font-variant-numeric:tabular-nums}
 .dae-chart-legend{display:flex;flex-wrap:wrap;gap:14px;padding:4px 3px 0;color:#aeb3a6;font-size:9px}
 .dae-chart-legend span{display:flex;align-items:center;gap:6px}
 .dae-chart-legend i,.dae-donut-layout li>i{width:7px;height:7px;border-radius:3px}
@@ -742,6 +782,11 @@
 .dm-client-pie-legend li>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dm-client-pie-legend li>b{display:grid;justify-items:end;gap:2px;color:#eef0e8;font-size:9px;font-variant-numeric:tabular-nums}
 .dm-client-pie-legend li>b small{color:#92988b;font-size:8px;font-weight:500}
+.dm-client-pie-stage{position:relative;display:grid;width:min(100%,270px);height:180px;place-items:center}
+.dm-client-pie-tooltip{position:absolute;z-index:3;display:grid;min-width:140px;max-width:220px;gap:3px;padding:9px 11px;border:1px solid #414a25;border-radius:8px;background:#111410;color:#e7e9e1;box-shadow:0 8px 24px #0008;pointer-events:none}
+.dm-client-pie-tooltip b{overflow-wrap:anywhere;font-size:11px}
+.dm-client-pie-tooltip strong{color:#d2fb07;font-size:13px}
+.dm-client-pie-tooltip small{color:#aeb3a6;font-size:10px}
 @media(max-width:950px){.dae-overview-grid{grid-template-columns:1fr 1fr}.dae-simple-table th,.dae-simple-table td{padding:8px 7px}.dae-overview-panel{padding:12px}}
 @media(max-width:680px){.dae-kpi-shell{width:calc(100% - 28px)}.dae-overview-toolbar{align-items:stretch;flex-direction:column}.dae-overview-toolbar form{min-width:0}.dae-best-card{min-width:0}.dae-overview-grid,.dae-bottom-grid{grid-template-columns:1fr}.dae-chart-wrap{height:190px}.dae-panel-heading h2{font-size:13px}.dae-simple-table{min-width:430px}.dae-client-panel .dae-simple-table{min-width:360px}.dae-donut-layout{justify-content:space-evenly}}
 @media(max-width:680px){.dae-funnel-table{min-width:680px}.dae-funnel-table th,.dae-funnel-table td{padding:8px 7px}.dae-funnel-table thead th:first-child,.dae-funnel-table tbody th{width:185px}}
@@ -839,3 +884,202 @@
 @media(max-width:700px){.client-list-toolbar{align-items:stretch;flex-direction:column}.client-list-toolbar form{display:grid;grid-template-columns:1fr auto}.client-list-toolbar input{width:100%;grid-column:1/-1}.client-list-toolbar select{min-width:0}}
 .dm-input-period .form-hint{margin:-4px 0 2px;color:var(--muted,#9aa08b);font-size:12px;line-height:1.5}
 .dm-assigned-person{margin:-10px 0 12px;color:var(--muted,#9aa08b);font-size:13px}
+.dm-input-period .form-grid{grid-template-columns:minmax(0,1fr)}
+.dm-client-row-heading{gap:10px;min-width:0;flex-wrap:wrap}
+.dm-client-row-heading b{min-width:0;overflow-wrap:anywhere}
+.dm-client-row-heading>span{color:#9da294;font-size:10px;text-align:right}
+.dm-assignment-table{min-width:760px}
+@media(max-width:620px){
+  .dm-assignment-table{display:block;width:100%;min-width:0;border-collapse:separate;border-spacing:0}
+  .dm-assignment-table thead{display:none}
+  .dm-assignment-table tbody{display:grid;gap:9px;padding:9px}
+  .dm-assignment-table tbody tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-width:0;padding:5px;border:1px solid #34392f;border-radius:9px;background:#111410}
+  .dm-assignment-table tbody td{display:grid;align-content:start;gap:5px;min-width:0;padding:8px;border:0;color:#e7e9e1;font-size:11px;overflow-wrap:anywhere}
+  .dm-assignment-table tbody td::before{content:attr(data-label);color:#92988b;font-size:9px;font-weight:650;letter-spacing:.2px}
+  .dm-assignment-table tbody td[data-label="Nama orang DM"],.dm-assignment-table tbody td[data-label="Client yang ditangani"]{grid-column:1/-1}
+  .dm-assignment-table tbody td[data-label="Aksi"]{align-content:center}
+  .dm-assignment-table .table-actions{flex-wrap:wrap;gap:7px}
+  .dm-assignment-table .row-edit[open]{position:static;min-width:0}
+  .dm-assignment-table .row-edit[open]>form.workflow-form{width:min(420px,calc(100vw - 125px));max-width:100%;grid-template-columns:minmax(0,1fr);}
+  .dm-assignment-table .row-edit[open] .workflow-wide{grid-column:auto}
+  .dm-client-performance-rows{min-width:0;padding:10px}
+  .dm-client-performance-row{min-width:0;padding:10px}
+  .dm-client-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+  .dm-client-metrics label{min-width:0;font-size:9px}
+  .dm-client-metrics input{min-width:0;width:100%;padding-inline:8px}
+  .dm-client-batch-form .form-actions{align-items:stretch;flex-direction:column}
+  .dm-client-batch-form .form-actions>*{width:100%;flex:auto}
+}
+@media(max-width:380px){.dm-client-metrics{grid-template-columns:minmax(0,1fr)}}
+.dm-client-workspace{max-width:none}
+.dm-team-add{margin:0 0 18px}
+.dm-team-add>summary{display:inline-flex;align-items:center;min-height:42px;padding:0 16px;border:1px solid #d2fb07;border-radius:9px;background:#d2fb07;color:#1a2112;font-size:12px;font-weight:750;cursor:pointer;list-style:none}
+.dm-team-add>summary:before{content:"＋";display:inline-grid;width:18px;height:18px;margin-right:8px;place-items:center;border-radius:50%;background:#1a2112;color:#d2fb07}
+.dm-team-add[open]>form{max-width:720px;margin-top:12px;padding:18px;border:1px solid #34392f;border-radius:10px;background:#151812}
+.dm-team-add>form label small{color:#969c8c;font-size:10px;font-weight:450;line-height:1.5}
+.dm-client-workspace>.admin-heading{padding-bottom:22px}
+.dm-client-workspace>.admin-heading p{max-width:720px;line-height:1.6}
+.dm-pair-form{max-width:760px}
+.dm-pair-identity{display:flex;flex-wrap:wrap;gap:10px}
+.dm-pair-identity>span{display:grid;gap:4px;min-width:180px;padding:12px 14px;border:1px solid #34392f;border-radius:9px;background:#151812;color:#969c8c;font-size:9px;letter-spacing:.7px}
+.dm-pair-identity b{color:#f0f2e9;font-size:13px;letter-spacing:0}
+.dm-pair-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 14px}
+.dm-pair-summary>div{display:grid;gap:6px;padding:14px 16px;border:1px solid #34392f;border-radius:9px;background:#151812}
+.dm-pair-summary span{color:#969c8c;font-size:9px;letter-spacing:.75px}
+.dm-pair-summary strong{color:#f0f2e9;font:650 15px 'Manrope',sans-serif;overflow-wrap:anywhere}
+.dm-entry-list{margin-top:14px}
+.dm-pair-footnote{color:#969c8c;font-size:11px;line-height:1.55}
+@media(max-width:700px){.dm-pair-summary{grid-template-columns:1fr}.dm-pair-summary>div{padding:11px 13px}.dm-client-workspace>.admin-heading{gap:12px}}
+
+/* Readability pass: raise small interface text while keeping dense data scrollable. */
+@media(min-width:701px){
+  .navlinks{font-size:14px}
+  .button{font-size:14px}
+  .hero-copy{font-size:17px}
+  .section-head p,.service-card p,.package-preview-inner p,.package-card>p,.faq-list details p,.body-copy,.narrow-copy p,.split-callout p{font-size:15px}
+  .service-detail p,.process-step p{font-size:15px}
+  .service-detail li,.package-card li,.partner-info-card li{font-size:13px}
+}
+.micro-note,.footer-note{font-size:12px}
+.footer-links{font-size:12px}
+.admin-nav a,.admin-sidebar-bottom a,.admin-sidebar-bottom button{font-size:13px}
+.admin-nav-label{font-size:10px}
+.admin-topbar{font-size:12px}
+.admin-heading p,.admin-section-label p{font-size:14px}
+.admin-stats span{font-size:13px}
+.admin-table th{font-size:11px}
+.admin-table td{font-size:13px}
+.admin-table td small{font-size:11px}
+.table-actions a,.table-delete{font-size:12px}
+.package-edit-form label,.form-grid>label,.team-kpi-form-shell .package-edit-form label,.team-kpi-target-form label{font-size:13px}
+.package-edit-form input:not([type=checkbox]),.package-edit-form select,.package-edit-form textarea,.team-kpi-target-form input,.team-kpi-target-form select{font-size:14px}
+.team-kpi-card>span{font-size:13px}
+.team-kpi-card>small,.team-kpi-shell .analytics-panel-heading p{font-size:12px}
+.team-kpi-shell .analytics-panel-heading h2{font-size:17px}
+.team-kpi-target-list li{font-size:12px}
+.team-kpi-entries .admin-table td{font-size:12px}
+.team-kpi-entries .admin-table td small{font-size:11px}
+.dae-overview-toolbar form>label,.dm-team-period{font-size:12px}
+.dae-overview-toolbar select,.dae-overview-toolbar input[type=month]{font-size:13px}
+.dae-overview-toolbar form button{font-size:12px}
+.dae-best-card small{font-size:11px}
+.dae-best-card strong{font-size:15px}
+.dae-overview-panel{padding:17px}
+.dae-panel-heading>div>span{font-size:10px}
+.dae-panel-heading h2{font-size:16px}
+.dae-panel-heading>small,.dae-period-pill{font-size:11px}
+.dae-simple-table{min-width:620px}
+.dae-simple-table th{font-size:10px}
+.dae-simple-table td,.dae-row-cell-link{font-size:12px}
+.dae-row-cell-link{min-height:42px}
+.dae-simple-table td small,.dm-client-table td small,.dm-weekly-table td small{font-size:10px}
+.dae-rank{font-size:10px}
+.dae-grade,.dae-grade small,.dae-clear-filter{font-size:11px}
+.dae-funnel-table{min-width:700px}
+.dae-funnel-table th,.dae-funnel-table td,.dae-funnel-table thead th,.dae-funnel-table tbody th{font-size:11px}
+.dae-funnel-table thead th small{font-size:10px}
+.dae-grade-summary p{font-size:12px}
+.dae-grade-summary small{font-size:11px}
+.dm-weekly-cell{font-size:11px}
+.dae-chart-legend,.dae-table-footnote,.dm-chart-detail{font-size:11px}
+.dae-mini-column>small,.dae-donut small{font-size:10px}
+.dae-donut-layout li,.dae-donut-layout li>b{font-size:11px}
+.dm-client-sort button{min-height:32px;padding-inline:11px;font-size:11px}
+.dashboard-v2-heading p{font-size:14px}
+.dashboard-kicker{font-size:11px}
+.dashboard-date span{font-size:10px}
+.dashboard-date b{font-size:13px}
+.dashboard-v2-metric>div{font-size:13px}
+.dashboard-v2-metric>div i{font-size:10px}
+.dashboard-v2-metric small{font-size:12px}
+.dashboard-v2-panel-heading h2{font-size:17px}
+.dashboard-v2-panel-heading p,.dashboard-v2-panel-heading>a{font-size:12px}
+.chart-label,.performance-axis-label{font-size:12px}
+.dashboard-chart-legend,.performance-chart-legend{font-size:11px}
+.dashboard-chart-empty b,.dashboard-chart-empty>span:last-child{font-size:12px}
+.rank-index{font-size:12px}
+.rank-name b{font-size:13px}
+.rank-name small,.rank-result small{font-size:11px}
+.rank-result b{font-size:14px}
+.dashboard-v2-empty{font-size:12px}
+.dashboard-v2-footstats span{font-size:11px}
+.dashboard-v2-note{font-size:11px}
+.trend-label b{font-size:12px}
+.trend-label small,.trend-empty,.trend-dates{font-size:11px}
+.performance-sort-controls label{font-size:11px}
+.performance-sort-controls select{font-size:12px}
+.dashboard-performance-table th{font-size:10px}
+.dashboard-performance-table td,.dashboard-performance-table td b{font-size:12px}
+.dashboard-performance-table td small{font-size:11px}
+.performance-status{font-size:10px}
+.dashboard-performance-empty,.dashboard-table-note{font-size:12px}
+.performance-chart-readout>b,.performance-chart-readout>div strong{font-size:12px}
+.performance-chart-readout>div span,.performance-chart-caption{font-size:10px}
+.performance-card-heading h2{font-size:17px}
+.performance-card-heading p{font-size:11px}
+.performance-row-count,.performance-card-sort label{font-size:10px}
+.performance-card-sort select{height:36px;font-size:11px}
+.performance-content-name>b{font-size:11px}
+.performance-content-name>small{font-size:10px}
+.performance-card-values small,.performance-card-values b{font-size:10px}
+.performance-card-footnote{font-size:10px}
+.ranking-sort,.ranking-sort select{font-size:11px}
+.ranking-table th{font-size:10px}
+.ranking-table td,.ranking-table td:first-child b,.ranking-table td:last-child{font-size:12px}
+.ranking-number{font-size:10px}
+@media(max-width:700px){
+  .navlinks>a:not(.button){font-size:15px}
+  .hero-copy{font-size:16px;line-height:1.7}
+  .section-head p,.service-card p,.package-preview-inner p,.package-card>p,.faq-list details p,.service-detail p,.process-step p,.body-copy{font-size:14px}
+  .footer-links{font-size:12px}
+  .admin-nav a,.admin-sidebar-bottom a,.admin-sidebar-bottom button{font-size:13px}
+  .admin-heading p,.admin-section-label p{font-size:13px;line-height:1.55}
+  .admin-table th{font-size:10px}
+  .admin-table td{font-size:12px}
+  .admin-table td small{font-size:11px}
+  .package-edit-form label,.form-grid>label,.team-kpi-form-shell .package-edit-form label{font-size:13px}
+  .package-edit-form input:not([type=checkbox]),.package-edit-form select,.package-edit-form textarea{font-size:16px}
+  .team-kpi-card>span{font-size:11px}
+  .team-kpi-card>small{font-size:10px}
+  .team-kpi-entries .admin-table td{font-size:11px}
+  .dae-overview-toolbar form>label{font-size:12px}
+  .dae-overview-toolbar select,.dae-overview-toolbar input[type=month]{font-size:16px}
+  .dae-overview-toolbar form button{font-size:12px}
+  .dae-best-card small{font-size:10px}
+  .dae-best-card strong{font-size:14px}
+  .dae-panel-heading>div>span{font-size:9px}
+  .dae-panel-heading h2{font-size:15px}
+  .dae-panel-heading>small,.dae-period-pill{font-size:10px}
+  .dae-simple-table th{font-size:10px}
+  .dae-simple-table td,.dae-row-cell-link{font-size:11px}
+  .dae-simple-table td small{font-size:10px}
+  .dae-grade-summary p{font-size:11px}
+  .dae-grade-summary small{font-size:10px}
+  .dae-funnel-table{min-width:650px}
+  .dae-funnel-table th,.dae-funnel-table td,.dae-funnel-table thead th,.dae-funnel-table tbody th{font-size:10px}
+  .dae-chart-legend,.dae-table-footnote,.dm-chart-detail{font-size:10px;line-height:1.5}
+  .dm-client-sort button{min-height:34px;font-size:11px}
+  .dashboard-v2-heading p{font-size:13px}
+  .dashboard-kicker{font-size:10px}
+  .dashboard-date span{font-size:10px}
+  .dashboard-date b{font-size:13px}
+  .dashboard-v2-metric>div{font-size:12px}
+  .dashboard-v2-metric small{font-size:11px}
+  .dashboard-v2-panel-heading h2{font-size:16px}
+  .dashboard-v2-panel-heading p,.dashboard-v2-panel-heading>a{font-size:11px}
+  .dashboard-chart-legend,.performance-chart-legend{font-size:10px}
+  .rank-name b{font-size:13px}
+  .rank-name small,.rank-result small,.dashboard-v2-empty,.dashboard-v2-footstats span,.dashboard-v2-note{font-size:11px}
+  .trend-label b{font-size:12px}
+  .trend-label small,.trend-empty,.trend-dates{font-size:10px}
+  .dashboard-performance-table td,.dashboard-performance-table td b{font-size:11px}
+  .dashboard-performance-table td small,.dashboard-table-note{font-size:10px}
+  .performance-card-heading h2{font-size:16px}
+  .performance-card-heading p{font-size:11px}
+  .performance-card-sort label,.performance-card-sort select{font-size:11px}
+  .performance-content-name>b{font-size:11px}
+  .performance-card-values small,.performance-card-values b,.performance-card-footnote{font-size:10px}
+  .ranking-sort,.ranking-sort select{font-size:10px}
+  .ranking-table th{font-size:9px}
+  .ranking-table td,.ranking-table td:first-child b,.ranking-table td:last-child{font-size:11px}
+}

@@ -9,7 +9,7 @@ import { getMonthWeekStart } from "@/lib/dae-weeks";
 import { isExistingAgencyClientType } from "@/lib/client-types";
 import { deleteTeamEntry, saveKpiTarget } from "./actions";
 import DaeKpiOverview, { type DaeClientRow, type DaeOverviewRow, type DaeTrendPoint, type DaeTypeSlice, type DaeWeeklyData } from "@/components/dae-kpi-overview";
-import DmKpiOverview, { type DmOverviewRow, type DmTrendPoint } from "@/components/dm-kpi-overview";
+import DmKpiOverview, { type DmOverviewRow, type DmTrendPoint, type DmWeeklyRow } from "@/components/dm-kpi-overview";
 
 export const metadata = { title: "KPI Tim | Solusi Sejalan" };
 type Totals = RowDataPacket & { scope: "dm" | "dae"; entries: number; contents: number|string; video_views: number|string; tiktok_sales: number|string; shopee_sales: number|string; new_clients: number|string; strategies: number|string; visits: number|string };
@@ -30,7 +30,7 @@ const dateValue=(value:string|Date)=>typeof value==="string"?value.slice(0,10):n
 function readIds(value:unknown):number[]{try{const source=value instanceof Uint8Array?new TextDecoder().decode(value):value;const parsed=typeof source==="string"?JSON.parse(source):source;return Array.isArray(parsed)?[...new Set(parsed.map(Number).filter(id=>Number.isSafeInteger(id)&&id>0))]:[]}catch{return[]}}
 const isDaeScope=(value:string)=>value==="dae";
 
-export default async function KpiDashboard({ searchParams }: { searchParams: Promise<{ scope?: string; week?:string; dae?:string; dm?:string; month?:string; saved?: string; error?: string }> }) {
+export default async function KpiDashboard({ searchParams }: { searchParams: Promise<{ scope?: string; week?:string; dae?:string; dm?:string; month?:string; weeklyMonth?:string; saved?: string; error?: string }> }) {
   if (!(await verifyAdminSession())) redirect("/admin/login");
   const user = await getAdminSessionUser();
   const canDM = user?.role === "superadmin" || user?.admin_scope === "dm" || user?.admin_scope === "both";
@@ -139,27 +139,32 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     rows.sort((a,b)=>b.score-a.score||b.videoViews-a.videoViews||a.name.localeCompare(b.name,"id"));
     const selectedDm=rows.some(row=>row.name===query.dm)?query.dm:undefined;
     const periods=Array.from({length:5},(_,index)=>getMonthWeekStart(month,index+1));
+    const weeklyMonth=/^\d{4}-(0[1-9]|1[0-2])$/.test(query.weeklyMonth??"")?query.weeklyMonth!:month;
+    const weeklyPeriods=Array.from({length:5},(_,index)=>getMonthWeekStart(weeklyMonth,index+1));
+    const weeklyEntries=weeklyMonth===month?dmEntries:(await db.execute<DmEntry[]>("SELECT COALESCE(e.dm_team_member_id,e.assigned_user_id) AS dm_id,COALESCE(m.full_name,e.dm_person,u.full_name) AS dm_name,e.client_name,e.client_type,e.activity_date,e.contents,e.video_views,e.tiktok_sales,e.shopee_sales FROM team_activity_entries e LEFT JOIN dm_team_members m ON m.id=e.dm_team_member_id LEFT JOIN users u ON u.id=e.assigned_user_id WHERE e.scope='dm' AND e.entry_type='dm_client' AND e.activity_date>=? AND e.activity_date<DATE_ADD(?,INTERVAL 1 MONTH) ORDER BY e.activity_date,e.id", [`${weeklyMonth}-01`, `${weeklyMonth}-01`]))[0];
     const trendMap=new Map<string,DmTrendPoint>();
-    const setPoint=(week:string,name:string)=>{const key=`${week}\u0000${name}`;let point=trendMap.get(key);if(!point){point={week,dm:name,contents:0,videoViews:0,sales:0};trendMap.set(key,point)}return point};
-    const periodForDate=(date:string|Date)=>{const day=dateValue(date);if(day.slice(0,7)!==month)return null;const starts=periods.filter((period):period is string=>Boolean(period));return [...starts].reverse().find(start=>start<=day)??starts[0]??null};
-    for(const period of periods)if(period)setPoint(period,"__all__");
-    for(const entry of dmEntries){const week=periodForDate(entry.activity_date),name=entry.dm_name??"Belum ditentukan";if(!week)continue;for(const bucket of [setPoint(week,name),setPoint(week,"__all__")]){bucket.contents+=Number(entry.contents);bucket.videoViews+=Number(entry.video_views);bucket.sales+=Number(entry.tiktok_sales)+Number(entry.shopee_sales)}}
+    const setPoint=(date:string,name:string)=>{const key=`${date}\u0000${name}`;let point=trendMap.get(key);if(!point){point={week:date,dm:name,contents:0,videoViews:0,sales:0};trendMap.set(key,point)}return point};
+    const periodForMonthDate=(date:string|Date,monthKey:string,monthPeriods:(string|null)[])=>{const day=dateValue(date);if(day.slice(0,7)!==monthKey)return null;const starts=monthPeriods.filter((period):period is string=>Boolean(period));return [...starts].reverse().find(start=>start<=day)??starts[0]??null};
+    for(const entry of dmEntries){const date=dateValue(entry.activity_date),name=entry.dm_name??"Belum ditentukan";for(const bucket of [setPoint(date,name),setPoint(date,"__all__")]){bucket.contents+=Number(entry.contents);bucket.videoViews+=Number(entry.video_views);bucket.sales+=Number(entry.tiktok_sales)+Number(entry.shopee_sales)}}
     const trends=[...trendMap.values()].sort((a,b)=>a.week.localeCompare(b.week));
-    type ClientPerformance={dm:string;name:string;type:string;contents:number;videoViews:number;tiktokSales:number;shopeeSales:number};
+    type ClientPerformance={dm:string;name:string;type:string;contents:number;videoViews:number;tiktokSales:number;shopeeSales:number;weeks:Record<string,ClientWeek>};
     type ClientWeek={contents:number;videoViews:number;tiktokSales:number;shopeeSales:number};
     const performanceMap=new Map<string,ClientPerformance>();
-    const clientWeekly:Record<string,Record<string,ClientWeek>>={};
-    for(const entry of dmEntries){if(!entry.client_name)continue;const name=entry.dm_name??"Belum ditentukan";if(selectedDm&&name!==selectedDm)continue;
-      const type=clientTypeLabels[entry.client_type??""]??entry.client_type??"Belum diklasifikasi",key=`${name}\u0000${entry.client_name}\u0000${type}`;
-      const total=performanceMap.get(key)??{dm:name,name:entry.client_name,type,contents:0,videoViews:0,tiktokSales:0,shopeeSales:0};
-      total.contents+=Number(entry.contents);total.videoViews+=Number(entry.video_views);total.tiktokSales+=Number(entry.tiktok_sales);total.shopeeSales+=Number(entry.shopee_sales);performanceMap.set(key,total);
-      const week=periodForDate(entry.activity_date);if(!week)continue;
-      const byWeek=clientWeekly[key]??{};const value=byWeek[week]??{contents:0,videoViews:0,tiktokSales:0,shopeeSales:0};
-      value.contents+=Number(entry.contents);value.videoViews+=Number(entry.video_views);value.tiktokSales+=Number(entry.tiktok_sales);value.shopeeSales+=Number(entry.shopee_sales);byWeek[week]=value;clientWeekly[key]=byWeek;
+    const clientWeekly=new Map<string,Record<string,ClientWeek>>();
+    for(const entry of dmEntries){const name=entry.dm_name??"Belum ditentukan";if(selectedDm&&name!==selectedDm)continue;
+      if(entry.client_name){
+        const type=clientTypeLabels[entry.client_type??""]??entry.client_type??"Belum diklasifikasi",key=`${name}\u0000${entry.client_name}\u0000${type}`;
+        const total=performanceMap.get(key)??{dm:name,name:entry.client_name,type,contents:0,videoViews:0,tiktokSales:0,shopeeSales:0,weeks:{}};
+        total.contents+=Number(entry.contents);total.videoViews+=Number(entry.video_views);total.tiktokSales+=Number(entry.tiktok_sales);total.shopeeSales+=Number(entry.shopee_sales);performanceMap.set(key,total);
+        const week=periodForMonthDate(entry.activity_date,month,periods);
+        if(week){const byWeek=clientWeekly.get(key)??{};const value=byWeek[week]??{contents:0,videoViews:0,tiktokSales:0,shopeeSales:0};value.contents+=Number(entry.contents);value.videoViews+=Number(entry.video_views);value.tiktokSales+=Number(entry.tiktok_sales);value.shopeeSales+=Number(entry.shopee_sales);byWeek[week]=value;clientWeekly.set(key,byWeek);total.weeks=byWeek}
+      }
     }
     const performanceRows=[...performanceMap.values()].sort((a,b)=>b.videoViews-a.videoViews||a.name.localeCompare(b.name,"id"));
-    const weeklyClientRows=performanceRows.map(item=>({key:`${item.dm}\u0000${item.name}\u0000${item.type}`,dm:item.dm,name:item.name,type:item.type,weeks:clientWeekly[`${item.dm}\u0000${item.name}\u0000${item.type}`]??{}}));
-    return <div className="admin-page admin-theme-dashboard"><AdminNavigation active="kpi" teamActive="dm-overview"/><main className="admin-main admin-section-main"><AdminTopbar section="Tim" page="Overview DM"/><div className="admin-shell team-kpi-shell dae-kpi-shell"><section className="admin-heading"><div><span className="eyebrow">WORKSPACE / DM</span><h1>Overview DM</h1><p>Pantau performa konten, views video, dan omset tim DM.</p></div><div className="team-kpi-tabs"><Link className="active" href="/admin/kpi?scope=dm">DM</Link><Link href="/admin/kpi?scope=dae">DAE</Link></div></section><DmKpiOverview month={month} rows={rows} trends={trends} selectedDm={selectedDm} periods={periods} performanceRows={performanceRows} weeklyClientRows={weeklyClientRows}/></div></main></div>;
+    const weeklyDm=new Map<string,Record<string,ClientWeek>>();
+    for(const entry of weeklyEntries){const name=entry.dm_name??"Belum ditentukan";if(selectedDm&&name!==selectedDm)continue;const week=periodForMonthDate(entry.activity_date,weeklyMonth,weeklyPeriods);if(!week)continue;const byWeek=weeklyDm.get(name)??{};const value=byWeek[week]??{contents:0,videoViews:0,tiktokSales:0,shopeeSales:0};value.contents+=Number(entry.contents);value.videoViews+=Number(entry.video_views);value.tiktokSales+=Number(entry.tiktok_sales);value.shopeeSales+=Number(entry.shopee_sales);byWeek[week]=value;weeklyDm.set(name,byWeek)}
+    const weeklyDmRows:DmWeeklyRow[]=[...weeklyDm].map(([name,weeks])=>({name,weeks})).sort((a,b)=>a.name.localeCompare(b.name,"id"));
+    return <div className="admin-page admin-theme-dashboard"><AdminNavigation active="kpi" teamActive="dm-overview"/><main className="admin-main admin-section-main"><AdminTopbar section="Tim" page="Overview DM"/><div className="admin-shell team-kpi-shell dae-kpi-shell"><section className="admin-heading"><div><span className="eyebrow">WORKSPACE / DM</span><h1>Overview DM</h1><p>Pantau performa konten, views video, dan omset tim DM.</p></div><div className="team-kpi-tabs"><Link className="active" href="/admin/kpi?scope=dm">DM</Link><Link href="/admin/kpi?scope=dae">DAE</Link></div></section><DmKpiOverview month={month} weeklyMonth={weeklyMonth} rows={rows} trends={trends} selectedDm={selectedDm} periods={periods} weeklyPeriods={weeklyPeriods} performanceRows={performanceRows} weeklyDmRows={weeklyDmRows}/></div></main></div>;
   }
   const outputScope: string = scope;
   return <div className="admin-page admin-theme-dashboard"><AdminNavigation active="kpi" teamActive={outputScope==="dm"?"dm-overview":"dae-overview"}/><main className="admin-main admin-section-main"><AdminTopbar section="Tim" page="KPI & aktivitas"/><div className="admin-shell team-kpi-shell">
