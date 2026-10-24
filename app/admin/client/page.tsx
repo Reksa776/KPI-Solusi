@@ -9,7 +9,7 @@ import ClientAddPanel from "@/components/client-add-panel";
 import { verifyAdminAnyScope, verifyAdminSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import { deleteAgencyClient } from "./actions";
-import { clientTypes } from "@/components/admin-client-form";
+import { agencyClientTypes as clientTypes } from "@/lib/client-types";
 
 export const metadata: Metadata = { title: "Client | Solusi Sejalan" };
 type ClientRow = RowDataPacket & { id:number;client_name:string;client_type:string };
