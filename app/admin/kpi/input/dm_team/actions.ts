@@ -27,7 +27,7 @@ export async function saveDmTeamMember(form:FormData) {
     const user=await getAdminSessionUser();
     await db.execute("INSERT INTO dm_team_members (full_name,created_by) VALUES (?,?)",[name,user?.id??null]);
   }
-  revalidatePath(path); revalidatePath("/admin/kpi"); revalidatePath("/admin/kpi/input/dm_client");
+  revalidatePath(path); revalidatePath("/admin/kpi"); revalidatePath("/admin/kpi/input/dm_client"); revalidatePath("/performa/dm");
   redirect(`${path}?saved=1`);
 }
 
@@ -36,6 +36,6 @@ export async function deleteDmTeamMember(form:FormData) {
   const id=Number(read(form,"id",16));
   if(!Number.isSafeInteger(id)||id<1)redirect(`${path}?error=invalid`);
   await getDb().execute("DELETE FROM dm_team_members WHERE id=?",[id]);
-  revalidatePath(path); revalidatePath("/admin/kpi/input/dm_client"); revalidatePath("/admin/kpi");
+  revalidatePath(path); revalidatePath("/admin/kpi/input/dm_client"); revalidatePath("/admin/kpi"); revalidatePath("/performa/dm");
   redirect(`${path}?deleted=1`);
 }
