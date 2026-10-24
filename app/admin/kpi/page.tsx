@@ -16,6 +16,7 @@ type Totals = RowDataPacket & { scope: "dm" | "dae"; entries: number; contents: 
 type Target = RowDataPacket & { scope: "dm" | "dae"; metric: string; target_value: number|string };
 type Entry = RowDataPacket & { id: number; scope: string; entry_type: string; title: string; client_name: string|null; client_type: string|null; dae_person: string|null; full_name: string|null; activity_date: string; contents: number|string; video_views: number|string; tiktok_sales: number|string; shopee_sales: number|string; new_clients: number|string; strategies: number|string; visits: number|string };
 type DmEntry = RowDataPacket & { dm_id:number|null; dm_name:string|null; client_name:string|null; client_type:string|null; activity_date:string|Date; contents:number|string; video_views:number|string; tiktok_sales:number|string; shopee_sales:number|string };
+type DmAssignment = RowDataPacket & { dm_id:number; dm_name:string; client_name:string; client_type:string };
 type Assignment = RowDataPacket & { dae_person: string; week_start: string|Date; agency_client_ids: unknown };
 type Client = RowDataPacket & { id:number; client_name:string; client_type:string };
 type WeeklyCount = RowDataPacket & { dae_person?:string; week_start:string|Date; total:number };
@@ -130,10 +131,14 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     return <div className="admin-page admin-theme-dashboard"><AdminNavigation active="kpi" teamActive="dae-overview"/><main className="admin-main admin-section-main"><AdminTopbar section="Tim" page="Overview DAE"/><div className="admin-shell team-kpi-shell dae-kpi-shell"><section className="admin-heading"><div><span className="eyebrow">WORKSPACE / DAE</span><h1>Overview DAE</h1><p>Pantau kepemilikan client dan aktivitas tim berdasarkan periode mingguan.</p></div><div className="team-kpi-tabs"><Link href="/admin/kpi?scope=dm">DM</Link><Link className="active" href="/admin/kpi?scope=dae">DAE</Link></div></section><DaeKpiOverview week={activeWeek} weeks={weeks} rows={rows} clients={visibleClients} trend={trend} slices={slices} selectedDae={selectedDae} periodWeeks={periodWeeks} weeklyData={weeklyData} averageGrade={averageGrade}/></div></main></div>;
   }
   if (scope === "dm") {
-    const [dmEntries] = await db.execute<DmEntry[]>("SELECT m.id AS dm_id,m.full_name AS dm_name,e.client_name,e.client_type,e.activity_date,e.contents,e.video_views,e.tiktok_sales,e.shopee_sales FROM team_activity_entries e JOIN dm_team_members m ON m.id=e.dm_team_member_id WHERE e.scope='dm' AND e.entry_type='dm_client' AND e.activity_date>=? AND e.activity_date<DATE_ADD(?,INTERVAL 1 MONTH) ORDER BY e.activity_date,e.id", [`${month}-01`, `${month}-01`]);
+    const [[dmEntries],[dmAssignments]] = await Promise.all([
+      db.execute<DmEntry[]>("SELECT m.id AS dm_id,m.full_name AS dm_name,e.client_name,e.client_type,e.activity_date,e.contents,e.video_views,e.tiktok_sales,e.shopee_sales FROM team_activity_entries e JOIN dm_team_members m ON m.id=e.dm_team_member_id WHERE e.scope='dm' AND e.entry_type='dm_client' AND e.activity_date>=? AND e.activity_date<DATE_ADD(?,INTERVAL 1 MONTH) ORDER BY e.activity_date,e.id", [`${month}-01`, `${month}-01`]),
+      db.execute<DmAssignment[]>("SELECT m.id AS dm_id,m.full_name AS dm_name,c.client_name,c.client_type FROM dm_client_assignments a JOIN dm_team_members m ON m.id=a.dm_team_member_id JOIN agency_clients c ON c.id=a.agency_client_id ORDER BY m.full_name,c.client_name")
+    ]);
     const map = new Map<string,DmOverviewRow>();
     const ensure = (id:number|null,name:string) => { const key = name || "Belum ditentukan"; let row = map.get(key); if (!row) { row={id,name:key,clients:0,contents:0,videoViews:0,tiktokSales:0,shopeeSales:0,score:0}; map.set(key,row); } return row; };
-    for (const entry of dmEntries) { const row=ensure(entry.dm_id,entry.dm_name??"Belum ditentukan"); row.clients += entry.client_name ? 1 : 0; row.contents += Number(entry.contents); row.videoViews += Number(entry.video_views); row.tiktokSales += Number(entry.tiktok_sales); row.shopeeSales += Number(entry.shopee_sales); }
+    for(const assignment of dmAssignments)ensure(assignment.dm_id,assignment.dm_name).clients++;
+    for (const entry of dmEntries) { const row=ensure(entry.dm_id,entry.dm_name??"Belum ditentukan"); row.contents += Number(entry.contents); row.videoViews += Number(entry.video_views); row.tiktokSales += Number(entry.tiktok_sales); row.shopeeSales += Number(entry.shopee_sales); }
     const rows=[...map.values()];
     const max={contents:Math.max(1,...rows.map(row=>row.contents)),videoViews:Math.max(1,...rows.map(row=>row.videoViews)),sales:Math.max(1,...rows.map(row=>row.tiktokSales+row.shopeeSales))};
     for(const row of rows)row.score=50*row.contents/max.contents+30*row.videoViews/max.videoViews+20*(row.tiktokSales+row.shopeeSales)/max.sales;
@@ -154,6 +159,7 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     type ClientWeek={contents:number;videoViews:number;tiktokSales:number;shopeeSales:number};
     const performanceMap=new Map<string,ClientPerformance>();
     const clientWeekly=new Map<string,Record<string,ClientWeek>>();
+    for(const assignment of dmAssignments){if(selectedDm&&assignment.dm_name!==selectedDm)continue;const type=clientTypeLabels[assignment.client_type]??assignment.client_type,key=`${assignment.dm_name}\u0000${assignment.client_name}\u0000${type}`;if(!performanceMap.has(key))performanceMap.set(key,{dm:assignment.dm_name,name:assignment.client_name,type,contents:0,videoViews:0,tiktokSales:0,shopeeSales:0,weeks:{}})}
     for(const entry of dmEntries){const name=entry.dm_name??"Belum ditentukan";if(selectedDm&&name!==selectedDm)continue;
       if(entry.client_name){
         const type=clientTypeLabels[entry.client_type??""]??entry.client_type??"Belum diklasifikasi",key=`${name}\u0000${entry.client_name}\u0000${type}`;

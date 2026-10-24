@@ -48,7 +48,7 @@ export default function DmKpiOverview({ month, weeklyMonth, rows, trends, select
   const clientSortOptions:[typeof clientSort,string][]=[["tiktokSales","Omset TikTok"],["shopeeSales","Omset Shopee"],["contents","Konten"],["videoViews","Views video"]];
   const clientMetric=(client:DmClientPerformanceRow)=>client[clientSort];
   const performanceMetric=(client:DmClientPerformanceRow)=>client[performanceSort];
-  const clientPeriodRows=activeClientWeek?performanceRows.flatMap(client=>client.weeks[activeClientWeek]?[{...client,...client.weeks[activeClientWeek]}]:[]):performanceRows;
+  const clientPeriodRows=activeClientWeek?performanceRows.map(client=>({...client,...(client.weeks[activeClientWeek]??{contents:0,videoViews:0,tiktokSales:0,shopeeSales:0})})):performanceRows;
   const rankedClients=[...clientPeriodRows].sort((a,b)=>performanceMetric(b)-performanceMetric(a)||a.name.localeCompare(b.name,"id"));
   const pieRankedClients=[...clientPeriodRows].sort((a,b)=>clientMetric(b)-clientMetric(a)||a.name.localeCompare(b.name,"id"));
   const formatMetricValue=(value:number)=>clientSort.endsWith("Sales")?money(value):number(value);

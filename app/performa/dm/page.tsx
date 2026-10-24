@@ -8,6 +8,7 @@ import DmKpiOverview, { type DmClientPerformanceRow, type DmOverviewRow, type Dm
 export const metadata:Metadata={title:"Overview DM | Solusi Sejalan",description:"Ringkasan performa bulanan tim Digital Marketing."};
 type Query={month?:string;weeklyMonth?:string;dm?:string};
 type Entry=RowDataPacket&{dm_id:number|null;dm_name:string|null;client_name:string|null;client_type:string|null;activity_date:string|Date;contents:number|string;video_views:number|string;tiktok_sales:number|string;shopee_sales:number|string};
+type Assignment=RowDataPacket&{dm_id:number;dm_name:string;client_name:string;client_type:string};
 type Metric={contents:number;videoViews:number;tiktokSales:number;shopeeSales:number};
 const validMonth=(value?:string)=>/^\d{4}-(0[1-9]|1[0-2])$/.test(value??"");
 const dateValue=(value:string|Date)=>typeof value==="string"?value.slice(0,10):new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(value);
@@ -17,11 +18,13 @@ const dbQuery="SELECT m.id AS dm_id,m.full_name AS dm_name,e.client_name,e.clien
 
 export default async function PublicDmPerformancePage({searchParams}:{searchParams:Promise<Query>}){
   const query=await searchParams,currentMonth=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit"}).format(new Date()),month=validMonth(query.month)?query.month!:currentMonth,weeklyMonth=validMonth(query.weeklyMonth)?query.weeklyMonth!:month;
-  const [[entries],[weeklyEntries]]=await Promise.all([getDb().execute<Entry[]>(dbQuery,[`${month}-01`,`${month}-01`]),weeklyMonth===month?Promise.resolve([[] as Entry[],[]] as const):getDb().execute<Entry[]>(dbQuery,[`${weeklyMonth}-01`,`${weeklyMonth}-01`])]);
+  const db=getDb();
+  const [[entries],[weeklyEntries],[assignments]]=await Promise.all([db.execute<Entry[]>(dbQuery,[`${month}-01`,`${month}-01`]),weeklyMonth===month?Promise.resolve([[] as Entry[],[]] as const):db.execute<Entry[]>(dbQuery,[`${weeklyMonth}-01`,`${weeklyMonth}-01`]),db.execute<Assignment[]>("SELECT m.id AS dm_id,m.full_name AS dm_name,c.client_name,c.client_type FROM dm_client_assignments a JOIN dm_team_members m ON m.id=a.dm_team_member_id JOIN agency_clients c ON c.id=a.agency_client_id ORDER BY m.full_name,c.client_name")]);
   const history=weeklyMonth===month?entries:weeklyEntries,periods=Array.from({length:5},(_,i)=>getMonthWeekStart(month,i+1)),weeklyPeriods=Array.from({length:5},(_,i)=>getMonthWeekStart(weeklyMonth,i+1)),today=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()),currentWeek=monthWeekStartForDate(today)??"";
   const periodFor=(date:string|Date,key:string,starts:(string|null)[])=>{const day=dateValue(date);if(day.slice(0,7)!==key)return null;const valid=starts.filter((x):x is string=>Boolean(x));return [...valid].reverse().find(x=>x<=day)??valid[0]??null};
   const grouped=new Map<string,DmOverviewRow>();
-  for(const e of entries){const name=e.dm_name??"Belum ditentukan",row=grouped.get(name)??{id:e.dm_id,name,clients:0,contents:0,videoViews:0,tiktokSales:0,shopeeSales:0,score:0};row.clients+=e.client_name?1:0;row.contents+=Number(e.contents);row.videoViews+=Number(e.video_views);row.tiktokSales+=Number(e.tiktok_sales);row.shopeeSales+=Number(e.shopee_sales);grouped.set(name,row)}
+  for(const a of assignments){const row=grouped.get(a.dm_name)??{id:a.dm_id,name:a.dm_name,clients:0,contents:0,videoViews:0,tiktokSales:0,shopeeSales:0,score:0};row.clients++;grouped.set(a.dm_name,row)}
+  for(const e of entries){const name=e.dm_name??"Belum ditentukan",row=grouped.get(name)??{id:e.dm_id,name,clients:0,contents:0,videoViews:0,tiktokSales:0,shopeeSales:0,score:0};row.contents+=Number(e.contents);row.videoViews+=Number(e.video_views);row.tiktokSales+=Number(e.tiktok_sales);row.shopeeSales+=Number(e.shopee_sales);grouped.set(name,row)}
   const rows=[...grouped.values()],max={contents:Math.max(1,...rows.map(x=>x.contents)),views:Math.max(1,...rows.map(x=>x.videoViews)),sales:Math.max(1,...rows.map(x=>x.tiktokSales+x.shopeeSales))};
   for(const row of rows)row.score=50*row.contents/max.contents+30*row.videoViews/max.views+20*(row.tiktokSales+row.shopeeSales)/max.sales;
   rows.sort((a,b)=>b.score-a.score||b.videoViews-a.videoViews||a.name.localeCompare(b.name,"id"));
@@ -29,6 +32,7 @@ export default async function PublicDmPerformancePage({searchParams}:{searchPara
   const point=(day:string,dm:string)=>{const key=`${day}\0${dm}`;let row=trendMap.get(key);if(!row){row={week:day,dm,contents:0,videoViews:0,sales:0};trendMap.set(key,row)}return row};
   for(const e of entries){const day=dateValue(e.activity_date);if(!periodFor(day,month,periods))continue;const name=e.dm_name??"Belum ditentukan";for(const row of [point(day,name),point(day,"__all__")]){row.contents+=Number(e.contents);row.videoViews+=Number(e.video_views);row.sales+=Number(e.tiktok_sales)+Number(e.shopee_sales)}}
   const performance=new Map<string,DmClientPerformanceRow>(),weeklyByDm=new Map<string,Record<string,Metric>>();
+  for(const a of assignments){if(query.dm&&a.dm_name!==query.dm)continue;const type=clientTypeLabels[a.client_type]??a.client_type,key=`${a.dm_name}\0${a.client_name}\0${type}`;if(!performance.has(key))performance.set(key,{dm:a.dm_name,name:a.client_name,type,contents:0,videoViews:0,tiktokSales:0,shopeeSales:0,weeks:{}})}
   for(const e of entries){const dm=e.dm_name??"Belum ditentukan";if(selectedDm&&dm!==selectedDm)continue;
     const week=periodFor(e.activity_date,month,periods);if(e.client_name){const type=clientTypeLabels[e.client_type??""]??e.client_type??"Belum diklasifikasi",key=`${dm}\0${e.client_name}\0${type}`,row=performance.get(key)??{dm,name:e.client_name,type,contents:0,videoViews:0,tiktokSales:0,shopeeSales:0,weeks:{}};row.contents+=Number(e.contents);row.videoViews+=Number(e.video_views);row.tiktokSales+=Number(e.tiktok_sales);row.shopeeSales+=Number(e.shopee_sales);if(week){const bucket=row.weeks[week]??blank();bucket.contents+=Number(e.contents);bucket.videoViews+=Number(e.video_views);bucket.tiktokSales+=Number(e.tiktok_sales);bucket.shopeeSales+=Number(e.shopee_sales);row.weeks[week]=bucket}performance.set(key,row)}
   }

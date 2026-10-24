@@ -18,6 +18,7 @@ export default function PublicPerformanceShell({ active, eyebrow, title, descrip
       <nav className="public-performance-tabs" aria-label="Navigasi overview performa">
         {items.map((item) => <Link key={item.id} className={active === item.id ? "active" : ""} href={item.href}><i aria-hidden="true">{item.icon}</i><span>{item.label}</span>{active === item.id && <b aria-hidden="true">›</b>}</Link>)}
       </nav>
+      <Link className="public-performance-login" href="/admin/login"><span aria-hidden="true">↗</span> Login untuk mengelola data</Link>
       <div className="public-performance-sidebar-note"><span>DATA TERBUKA</span><p>Ringkasan performa tim yang tercatat di Solusi Sejalan.</p></div>
     </aside>
     <div className="public-performance-main">
