@@ -5,7 +5,7 @@ import AdminNavigation from "@/components/admin-navigation";
 import AdminTopbar from "@/components/admin-topbar";
 import { getAdminSessionUser, verifyAdminSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
-import { getMonthWeekStart } from "@/lib/dae-weeks";
+import { getMonthWeekStart, monthWeekStartForDate } from "@/lib/dae-weeks";
 import { isExistingAgencyClientType } from "@/lib/client-types";
 import { deleteTeamEntry, saveKpiTarget } from "./actions";
 import DaeKpiOverview, { type DaeClientRow, type DaeOverviewRow, type DaeTrendPoint, type DaeTypeSlice, type DaeWeeklyData } from "@/components/dae-kpi-overview";
@@ -57,11 +57,12 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
       db.execute<Client[]>("SELECT id,client_name,client_type FROM agency_clients ORDER BY client_name")
     ]);
     const currentMonth=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit"}).format(new Date());
+    const currentDate=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
     const currentPeriods=Array.from({length:5},(_,index)=>getMonthWeekStart(currentMonth,index+1)).filter((value):value is string=>Boolean(value));
     const weeks=[...new Set([...weekRows.map(row=>dateValue(row.week_start)),...currentPeriods])].sort().reverse().slice(0,26);
     const requestedMonth=query.week?.slice(0,7)??currentMonth;
     const requestedPeriods=Array.from({length:5},(_,index)=>getMonthWeekStart(requestedMonth,index+1)).filter((value):value is string=>Boolean(value));
-    const activeWeek=query.week&&requestedPeriods.includes(query.week)?query.week:requestedPeriods.find(period=>period===new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date()))??requestedPeriods.find(period=>new Date(`${period}T12:00:00+07:00`)<=new Date())??requestedPeriods[0]??"";
+    const activeWeek=query.week&&requestedPeriods.includes(query.week)?query.week:monthWeekStartForDate(currentDate)??requestedPeriods[0]??"";
     const monthStart=activeWeek?new Date(`${activeWeek.slice(0,7)}-01T00:00:00Z`):null;
     const periodWeeks:string[]=[];
     if(monthStart){
@@ -140,12 +141,14 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     const selectedDm=rows.some(row=>row.name===query.dm)?query.dm:undefined;
     const periods=Array.from({length:5},(_,index)=>getMonthWeekStart(month,index+1));
     const weeklyMonth=/^\d{4}-(0[1-9]|1[0-2])$/.test(query.weeklyMonth??"")?query.weeklyMonth!:month;
+    const currentDate=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+    const currentWeek=monthWeekStartForDate(currentDate)??"";
     const weeklyPeriods=Array.from({length:5},(_,index)=>getMonthWeekStart(weeklyMonth,index+1));
     const weeklyEntries=weeklyMonth===month?dmEntries:(await db.execute<DmEntry[]>("SELECT COALESCE(e.dm_team_member_id,e.assigned_user_id) AS dm_id,COALESCE(m.full_name,e.dm_person,u.full_name) AS dm_name,e.client_name,e.client_type,e.activity_date,e.contents,e.video_views,e.tiktok_sales,e.shopee_sales FROM team_activity_entries e LEFT JOIN dm_team_members m ON m.id=e.dm_team_member_id LEFT JOIN users u ON u.id=e.assigned_user_id WHERE e.scope='dm' AND e.entry_type='dm_client' AND e.activity_date>=? AND e.activity_date<DATE_ADD(?,INTERVAL 1 MONTH) ORDER BY e.activity_date,e.id", [`${weeklyMonth}-01`, `${weeklyMonth}-01`]))[0];
+    const periodForMonthDate=(date:string|Date,monthKey:string,monthPeriods:(string|null)[])=>{const day=dateValue(date);if(day.slice(0,7)!==monthKey)return null;const starts=monthPeriods.filter((period):period is string=>Boolean(period));return [...starts].reverse().find(start=>start<=day)??starts[0]??null};
     const trendMap=new Map<string,DmTrendPoint>();
     const setPoint=(date:string,name:string)=>{const key=`${date}\u0000${name}`;let point=trendMap.get(key);if(!point){point={week:date,dm:name,contents:0,videoViews:0,sales:0};trendMap.set(key,point)}return point};
-    const periodForMonthDate=(date:string|Date,monthKey:string,monthPeriods:(string|null)[])=>{const day=dateValue(date);if(day.slice(0,7)!==monthKey)return null;const starts=monthPeriods.filter((period):period is string=>Boolean(period));return [...starts].reverse().find(start=>start<=day)??starts[0]??null};
-    for(const entry of dmEntries){const date=dateValue(entry.activity_date),name=entry.dm_name??"Belum ditentukan";for(const bucket of [setPoint(date,name),setPoint(date,"__all__")]){bucket.contents+=Number(entry.contents);bucket.videoViews+=Number(entry.video_views);bucket.sales+=Number(entry.tiktok_sales)+Number(entry.shopee_sales)}}
+    for(const entry of dmEntries){const date=dateValue(entry.activity_date);if(!periodForMonthDate(date,month,periods))continue;const name=entry.dm_name??"Belum ditentukan";for(const bucket of [setPoint(date,name),setPoint(date,"__all__")]){bucket.contents+=Number(entry.contents);bucket.videoViews+=Number(entry.video_views);bucket.sales+=Number(entry.tiktok_sales)+Number(entry.shopee_sales)}}
     const trends=[...trendMap.values()].sort((a,b)=>a.week.localeCompare(b.week));
     type ClientPerformance={dm:string;name:string;type:string;contents:number;videoViews:number;tiktokSales:number;shopeeSales:number;weeks:Record<string,ClientWeek>};
     type ClientWeek={contents:number;videoViews:number;tiktokSales:number;shopeeSales:number};
@@ -164,7 +167,7 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     const weeklyDm=new Map<string,Record<string,ClientWeek>>();
     for(const entry of weeklyEntries){const name=entry.dm_name??"Belum ditentukan";if(selectedDm&&name!==selectedDm)continue;const week=periodForMonthDate(entry.activity_date,weeklyMonth,weeklyPeriods);if(!week)continue;const byWeek=weeklyDm.get(name)??{};const value=byWeek[week]??{contents:0,videoViews:0,tiktokSales:0,shopeeSales:0};value.contents+=Number(entry.contents);value.videoViews+=Number(entry.video_views);value.tiktokSales+=Number(entry.tiktok_sales);value.shopeeSales+=Number(entry.shopee_sales);byWeek[week]=value;weeklyDm.set(name,byWeek)}
     const weeklyDmRows:DmWeeklyRow[]=[...weeklyDm].map(([name,weeks])=>({name,weeks})).sort((a,b)=>a.name.localeCompare(b.name,"id"));
-    return <div className="admin-page admin-theme-dashboard"><AdminNavigation active="kpi" teamActive="dm-overview"/><main className="admin-main admin-section-main"><AdminTopbar section="Tim" page="Overview DM"/><div className="admin-shell team-kpi-shell dae-kpi-shell"><section className="admin-heading"><div><span className="eyebrow">WORKSPACE / DM</span><h1>Overview DM</h1><p>Pantau performa konten, views video, dan omset tim DM.</p></div><div className="team-kpi-tabs"><Link className="active" href="/admin/kpi?scope=dm">DM</Link><Link href="/admin/kpi?scope=dae">DAE</Link></div></section><DmKpiOverview month={month} weeklyMonth={weeklyMonth} rows={rows} trends={trends} selectedDm={selectedDm} periods={periods} weeklyPeriods={weeklyPeriods} performanceRows={performanceRows} weeklyDmRows={weeklyDmRows}/></div></main></div>;
+    return <div className="admin-page admin-theme-dashboard"><AdminNavigation active="kpi" teamActive="dm-overview"/><main className="admin-main admin-section-main"><AdminTopbar section="Tim" page="Overview DM"/><div className="admin-shell team-kpi-shell dae-kpi-shell"><section className="admin-heading"><div><span className="eyebrow">WORKSPACE / DM</span><h1>Overview DM</h1><p>Pantau performa konten, views video, dan omset tim DM.</p></div><div className="team-kpi-tabs"><Link className="active" href="/admin/kpi?scope=dm">DM</Link><Link href="/admin/kpi?scope=dae">DAE</Link></div></section><DmKpiOverview month={month} weeklyMonth={weeklyMonth} rows={rows} trends={trends} selectedDm={selectedDm} periods={periods} weeklyPeriods={weeklyPeriods} performanceRows={performanceRows} weeklyDmRows={weeklyDmRows} currentWeek={currentWeek}/></div></main></div>;
   }
   const outputScope: string = scope;
   return <div className="admin-page admin-theme-dashboard"><AdminNavigation active="kpi" teamActive={outputScope==="dm"?"dm-overview":"dae-overview"}/><main className="admin-main admin-section-main"><AdminTopbar section="Tim" page="KPI & aktivitas"/><div className="admin-shell team-kpi-shell">
