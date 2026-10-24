@@ -12,6 +12,7 @@ const navItems = [
   ["Cara kerja", "/cara-kerja"],
   ["Jadi partner", "/partner"],
   ["Studi kasus", "/studi-kasus"],
+  ["Performa", "/performa"],
 ] as const;
 
 export default function SiteHeader({ settings }: { settings: ApplicationSettings }) {
