@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-export type TeamNavActive = "overview" | "dm-overview" | "dm-client" | "dm-team" | "dae-overview" | "dae-individual" | "dae-team" | "dae-strategy" | "dae-visit" | "dae-client";
+export type TeamNavActive = "overview" | "dm-overview" | "dm-client" | "dm-team" | "dm-targets" | "dae-overview" | "dae-individual" | "dae-team" | "dae-strategy" | "dae-visit" | "dae-client";
 type Item = { key: TeamNavActive; label: string; href: string };
 type Props = { canDM: boolean; canDAE: boolean; owner: boolean; scope?: string; active: TeamNavActive };
 
@@ -10,6 +10,7 @@ const dmItems: Item[] = [
   { key: "dm-overview", label: "Overview", href: "/admin/kpi?scope=dm" },
   { key: "dm-client", label: "Data Client untuk DM", href: "/admin/kpi/input/dm_client" },
   { key: "dm-team", label: "Data Tim DM", href: "/admin/kpi/input/dm_team" },
+  { key: "dm-targets", label: "Target Konten DM", href: "/admin/kpi/input/dm_targets" },
 ];
 const daeItems: Item[] = [
   { key: "dae-overview", label: "Overview", href: "/admin/kpi?scope=dae" },
