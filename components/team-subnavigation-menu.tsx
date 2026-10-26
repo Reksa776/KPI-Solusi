@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-export type TeamNavActive = "overview" | "dm-overview" | "dm-client" | "dm-team" | "dm-targets" | "dae-overview" | "dae-individual" | "dae-team" | "dae-strategy" | "dae-visit" | "dae-client";
+export type TeamNavActive = "overview" | "dm-overview" | "dm-client" | "dm-team" | "dm-targets" | "dae-overview" | "dae-individual" | "dae-team" | "dae-strategy" | "dae-visit" | "dae-client" | "client-overview";
 type Item = { key: TeamNavActive; label: string; href: string };
 type Props = { canDM: boolean; canDAE: boolean; owner: boolean; scope?: string; active: TeamNavActive };
 
@@ -41,5 +41,6 @@ export default function TeamSubnavigationMenu({ canDM, canDAE, owner, scope, act
   return <div className="team-sidebar-navigation" aria-label="Navigasi DM dan DAE">
     {dmHasDropdown ? <Dropdown label="DM" icon="◉" items={dmItems} active={active} openByDefault={dmOpen}/> : <Link className={`team-nav-direct${active === "dm-overview" ? " active" : ""}`} href="/admin/kpi?scope=dm"><span className="team-nav-icon">◉</span>DM (Overview)</Link>}
     {daeHasDropdown ? <Dropdown label="DAE" icon="◌" items={visibleDaeItems} active={active} openByDefault={daeOpen}/> : <Link className={`team-nav-direct${active === "dae-overview" ? " active" : ""}`} href="/admin/kpi?scope=dae"><span className="team-nav-icon">◌</span>DAE (Overview)</Link>}
+    {(canDM || canDAE) && <Link className={`team-nav-direct${active === "client-overview" ? " active" : ""}`} href="/admin/kpi/client"><span className="team-nav-icon">▤</span>Overview Client</Link>}
   </div>;
 }
