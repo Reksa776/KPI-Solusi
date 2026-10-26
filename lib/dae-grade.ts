@@ -16,14 +16,14 @@ function metricValue(value: string | number | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-/** Mirrors the DAE worksheet: strategy target is 4; retention uses existing clients; remaining targets are [10, 6, 100, 6]. */
+/** Mirrors the DAE worksheets: retention and strategy targets follow each DAE's existing-client target; remaining targets are [10, 6, 100, 6]. */
 export function daeIndicatorScore(metrics: DaeGradeMetrics): number {
   const coordination = metricValue(metrics.coordination);
   const dailyReport = metricValue(metrics.dailyReport);
   const clientTarget = Math.max(0, metrics.clientTarget);
   const score =
     (clientTarget ? metrics.clientRetention / clientTarget : 0) * 30 +
-    (metrics.strategies / 4) * 25 +
+    (clientTarget ? metrics.strategies / clientTarget : 0) * 25 +
     (metrics.visits / 10) * 20 +
     (metrics.achievement / 6) * 15 +
     (coordination / 100) * 7.5 +
