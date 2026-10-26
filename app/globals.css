@@ -1159,6 +1159,7 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dm-toolbar-side .kpi-excel-export select{width:100%;min-width:0}
 .dm-toolbar-side .kpi-excel-export button{padding-inline:9px}
 .dm-client-overview-shell{display:grid;gap:16px}
+.admin-page .dm-client-overview-shell{width:calc(100% - 48px);max-width:none}
 .dm-client-overview-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:20px}
 .dm-client-overview-heading>div{min-width:0}
 .dm-client-overview-filters{display:flex;align-items:flex-end;gap:9px;flex-wrap:wrap}
