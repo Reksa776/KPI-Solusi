@@ -1138,7 +1138,7 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 @media(max-width:620px){.dm-target-filter-form{grid-template-columns:1fr}.dm-target-plan-form .form-actions{align-items:stretch;flex-direction:column}.dm-content-target-panel .dae-panel-heading{align-items:flex-start}}
 .dae-overview-toolbar.dm-target-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(270px,323px);align-items:start;column-gap:18px;row-gap:0;margin:1px 0 3px}
 .dm-period-column{display:grid;gap:8px;min-width:0}
-.dm-toolbar-side{display:grid;gap:8px;min-width:0}
+.dm-toolbar-side{display:grid;gap:8px;min-width:0;padding-top:65px}
 .dm-toolbar-side .kpi-export-row{justify-content:stretch;margin:0}
 .dm-toolbar-side .kpi-excel-export{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:7px;padding:8px}
 .dm-toolbar-side .kpi-excel-export label{min-width:0}
@@ -1162,7 +1162,7 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dm-content-target-compact .dm-target-overview-table td>small{margin-top:1px;font-size:7px;line-height:1.15}
 .dm-content-target-compact .dm-target-overview-table td a{color:#eef0e8;text-decoration:none}
 .dm-content-target-compact .dm-target-overview-table td a:hover{color:#d2fb07}
-@media(max-width:700px){.dae-overview-toolbar.dm-target-toolbar{grid-template-columns:minmax(0,1fr);row-gap:10px}.dm-period-column{gap:8px}.dm-period-column>form{width:100%}.dm-target-toolbar .dae-best-card{width:100%}.dm-content-target-compact .dae-panel-heading{align-items:center}.dm-toolbar-side .kpi-excel-export{grid-template-columns:minmax(0,1fr)}.dm-toolbar-side .kpi-excel-export label:first-child,.dm-toolbar-side .kpi-excel-export button{grid-column:auto}.dm-toolbar-side .kpi-excel-export button{width:100%}}
+@media(max-width:700px){.dae-overview-toolbar.dm-target-toolbar{grid-template-columns:minmax(0,1fr);row-gap:10px}.dm-period-column{gap:8px}.dm-period-column>form{width:100%}.dm-target-toolbar .dae-best-card{width:100%}.dm-content-target-compact .dae-panel-heading{align-items:center}.dm-toolbar-side{padding-top:0}.dm-toolbar-side .kpi-excel-export{grid-template-columns:minmax(0,1fr)}.dm-toolbar-side .kpi-excel-export label:first-child,.dm-toolbar-side .kpi-excel-export button{grid-column:auto}.dm-toolbar-side .kpi-excel-export button{width:100%}}
 .dm-pair-footnote{color:#969c8c;font-size:11px;line-height:1.55}
 @media(max-width:700px){.dm-pair-summary{grid-template-columns:1fr}.dm-pair-summary>div{padding:11px 13px}.dm-client-workspace>.admin-heading{gap:12px}}
 
