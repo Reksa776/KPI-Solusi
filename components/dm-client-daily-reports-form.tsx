@@ -11,7 +11,7 @@ type DailyRow={key:string;date:string;contents:string;video_views:string;tiktok_
 type ImportResult={date:string;value:number|null};
 type Source={kind:"views"|"tiktok"|"shopee";title:string;description:string;metric:Metric};
 const sources:Source[]=[
-  {kind:"views",title:"Laporan Views TikTok",description:"Membuat laporan harian dari tiap tanggal di sheet Viewers.",metric:"video_views"},
+  {kind:"views",title:"Laporan Views TikTok",description:"Mengambil Video Views per tanggal dari sheet Overview (atau Total Viewers dari sheet Viewers).",metric:"video_views"},
   {kind:"tiktok",title:"Laporan Omset TikTok",description:"GMV masuk pada tanggal analisis laporan.",metric:"tiktok_sales"},
   {kind:"shopee",title:"Laporan Omset Shopee",description:"Total Penjualan masuk pada tanggal laporan.",metric:"shopee_sales"},
 ];

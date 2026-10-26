@@ -75,16 +75,19 @@ function parseViewRows(bytes: Buffer) {
   const workbook = zipEntry(bytes, "xl/workbook.xml");
   const rels = zipEntry(bytes, "xl/_rels/workbook.xml.rels");
   if (!workbook || !rels) throw new Error("Struktur workbook Excel tidak ditemukan.");
-  const sheetTag = workbook.toString("utf8").match(/<sheet\b[^>]*\bname\s*=\s*(["'])Viewers\1[^>]*>/i)?.[0];
-  if (!sheetTag) throw new Error("Sheet Viewers tidak ditemukan di file.");
+  const workbookXml = workbook.toString("utf8");
+  const sheetTags = Array.from(workbookXml.matchAll(/<sheet\b[^>]*>/gi), match => match[0]);
+  const sheetTag = sheetTags.find(tag => /^overview$/i.test(attribute(tag, "name")))
+    ?? sheetTags.find(tag => /^viewers$/i.test(attribute(tag, "name")));
+  if (!sheetTag) throw new Error("Sheet Overview atau Viewers tidak ditemukan di file.");
   const relationshipId = attribute(sheetTag, "r:id");
   const relationTag = Array.from(rels.toString("utf8").matchAll(/<Relationship\b[^>]*>/g), match => match[0]).find(tag => attribute(tag, "Id") === relationshipId);
-  if (!relationTag) throw new Error("Relasi sheet Viewers tidak ditemukan.");
+  if (!relationTag) throw new Error("Relasi sheet laporan tidak ditemukan.");
   const target = attribute(relationTag, "Target");
   const path = target.startsWith("/") ? target.slice(1) : `xl/${target}`;
   const normalizedPath = path.split("/").reduce<string[]>((parts, part) => part === ".." ? parts.slice(0, -1) : part === "." || !part ? parts : [...parts, part], []).join("/");
   const sheet = zipEntry(bytes, normalizedPath);
-  if (!sheet) throw new Error("Data sheet Viewers tidak dapat dibaca.");
+  if (!sheet) throw new Error("Data sheet laporan tidak dapat dibaca.");
 
   const sharedXml = zipEntry(bytes, "xl/sharedStrings.xml")?.toString("utf8") ?? "";
   const shared = Array.from(sharedXml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g), match => xmlText(match[1]));
@@ -102,10 +105,12 @@ function parseViewRows(bytes: Buffer) {
     return values;
   });
   const normalize = (value: string) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-  const headerIndex = rows.findIndex(row => row.some(value => normalize(value).includes("date")) && row.some(value => normalize(value).includes("total viewers")));
-  if (headerIndex < 0) throw new Error("Kolom Date dan Total Viewers tidak ditemukan.");
-  const dateIndex = rows[headerIndex].findIndex(value => normalize(value).includes("date"));
-  const viewersIndex = rows[headerIndex].findIndex(value => normalize(value).includes("total viewers"));
+  const viewHeader = (value: string) => /^(video\s*views|total\s*viewers|viewers|views)$/i.test(normalize(value));
+  const headerIndex = rows.findIndex(row => row.some(value => normalize(value) === "date") && row.some(viewHeader));
+  if (headerIndex < 0) throw new Error("Kolom Date dan Video Views tidak ditemukan.");
+  const dateIndex = rows[headerIndex].findIndex(value => normalize(value) === "date");
+  const videoViewsIndex = rows[headerIndex].findIndex(value => normalize(value) === "video views");
+  const viewersIndex = videoViewsIndex >= 0 ? videoViewsIndex : rows[headerIndex].findIndex(viewHeader);
   return rows.slice(headerIndex + 1).flatMap(row => {
     const date = row[dateIndex]?.trim() ?? "";
     const rawValue = row[viewersIndex]?.replace(/,/g, "").trim() ?? "";
@@ -124,7 +129,7 @@ export async function POST(request: NextRequest) {
   }
   try {
     const bytes = Buffer.from(await file.arrayBuffer());
-    const year = new Date().getUTCFullYear();
+    const year = Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Jakarta", year: "numeric" }).format(new Date()));
     const results = parseViewRows(bytes).flatMap(({ date, value }) => {
       const match = date.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})\b/i);
       if (!match) return [];
@@ -134,7 +139,7 @@ export async function POST(request: NextRequest) {
       const parsed = new Date(`${formatted}T00:00:00Z`);
       return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === formatted ? [{ date: formatted, value }] : [];
     });
-    if (!results.length) return NextResponse.json({ error: "Tidak ada tanggal dan Total Viewers yang valid di sheet Viewers." }, { status: 422 });
+    if (!results.length) return NextResponse.json({ error: "Tidak ada tanggal dan Video Views yang valid di sheet Overview atau Viewers." }, { status: 422 });
     return NextResponse.json({ results });
   } catch (error) {
     const message = error instanceof Error ? error.message : "File Excel tidak dapat dibaca.";

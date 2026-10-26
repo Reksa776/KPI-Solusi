@@ -38,7 +38,11 @@ async function parseXlsx(file:File):Promise<Sheet[]>{
 }
 function reportFromWorkbook(fileName:string,sheets:Sheet[],kind:"views"|"tiktok"|"shopee"):Report{
   const normalize=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();let sheet:Sheet|undefined,headerIndex=-1;
-  if(kind==="views"){sheet=sheets.find(item=>normalize(item.name)==="viewers");headerIndex=sheet?.rows.findIndex(row=>row.some(value=>normalize(value).includes("date"))&&row.some(value=>normalize(value).includes("total viewers")))??-1}
+  if(kind==="views"){
+    const hasViewHeaders=(rows:string[][])=>rows.some(row=>row.some(value=>normalize(value)==="date")&&row.some(value=>/^(video\s*views|total\s*viewers|viewers|views)$/i.test(normalize(value))));
+    sheet=sheets.find(item=>normalize(item.name)==="overview"&&hasViewHeaders(item.rows))??sheets.find(item=>normalize(item.name)==="viewers"&&hasViewHeaders(item.rows))??sheets.find(item=>hasViewHeaders(item.rows));
+    headerIndex=sheet?.rows.findIndex(row=>row.some(value=>normalize(value)==="date")&&row.some(value=>/^(video\s*views|total\s*viewers|viewers|views)$/i.test(normalize(value))))??-1;
+  }
   if(kind==="tiktok"){sheet=sheets.find(item=>normalize(item.name)==="sheet1")??sheets[0];headerIndex=sheet?.rows.findIndex(row=>row.some(value=>normalize(value)==="gmv"))??-1}
   if(kind==="shopee"){sheet=sheets.find(item=>normalize(item.name).includes("pesanan dibayar"));headerIndex=sheet?.rows.findIndex(row=>row.some(value=>normalize(value).includes("total penjualan")))??-1}
   if(!sheet||headerIndex<0)throw new Error("Format laporan tidak cocok. Pastikan memakai file laporan yang sesuai.");
@@ -46,7 +50,7 @@ function reportFromWorkbook(fileName:string,sheets:Sheet[],kind:"views"|"tiktok"
   if(kind==="tiktok")rows=rows.filter(row=>normalize(row[0]??"")==="total nilai").slice(0,1);
   if(kind==="shopee")rows=rows.slice(0,1);
   if(!rows.length)throw new Error("Nilai ringkasan tidak ditemukan pada laporan.");
-  const notice=kind==="views"?"Total viewers menjumlahkan angka per tanggal yang tersedia; baris tanpa angka dihitung 0.":kind==="tiktok"?"Mengambil GMV dari baris Total nilai pada ringkasan.":"Mengambil Total Penjualan dari ringkasan Pesanan Dibayar.";
+  const notice=kind==="views"?"Menggunakan Video Views per tanggal; untuk ringkasan satu angka, nilainya dijumlahkan.":kind==="tiktok"?"Mengambil GMV dari baris Total nilai pada ringkasan.":"Mengambil Total Penjualan dari ringkasan Pesanan Dibayar.";
   return{name:fileName,headers,rows,notice};
 }
 function reportDate(value:string,fallbackYear=new Date().getFullYear()):string{
@@ -59,9 +63,11 @@ export async function parseDatedReport(file:File,kind:"views"|"tiktok"|"shopee")
   if(!file.name.toLowerCase().endsWith(".xlsx"))throw new Error("Input banyak tanggal memerlukan file Excel .xlsx.");
   const sheets=await parseXlsx(file),normalize=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
   if(kind==="views"){
-    const sheet=sheets.find(item=>normalize(item.name)==="viewers");if(!sheet)throw new Error("Sheet Viewers tidak ditemukan.");
-    const header=sheet.rows.findIndex(row=>row.some(value=>normalize(value).includes("date"))&&row.some(value=>normalize(value).includes("total viewers")));if(header<0)throw new Error("Kolom Date / Total Viewers tidak ditemukan.");
-    const dateColumn=sheet.rows[header].findIndex(value=>normalize(value).includes("date")),valueColumn=sheet.rows[header].findIndex(value=>normalize(value).includes("total viewers"));
+    const hasViewHeaders=(rows:string[][])=>rows.some(row=>row.some(value=>normalize(value)==="date")&&row.some(value=>/^(video\s*views|total\s*viewers|viewers|views)$/i.test(normalize(value))));
+    const sheet=sheets.find(item=>normalize(item.name)==="overview"&&hasViewHeaders(item.rows))??sheets.find(item=>normalize(item.name)==="viewers"&&hasViewHeaders(item.rows))??sheets.find(item=>hasViewHeaders(item.rows));
+    if(!sheet)throw new Error("Sheet Overview atau Viewers tidak ditemukan.");
+    const header=sheet.rows.findIndex(row=>row.some(value=>normalize(value)==="date")&&row.some(value=>/^(video\s*views|total\s*viewers|viewers|views)$/i.test(normalize(value))));if(header<0)throw new Error("Kolom Date / Video Views tidak ditemukan.");
+    const dateColumn=sheet.rows[header].findIndex(value=>normalize(value)==="date"),videoViewsColumn=sheet.rows[header].findIndex(value=>normalize(value)==="video views"),valueColumn=videoViewsColumn>=0?videoViewsColumn:sheet.rows[header].findIndex(value=>/^(total viewers|viewers|views)$/i.test(normalize(value)));
     return sheet.rows.slice(header+1).flatMap(row=>{const date=reportDate(row[dateColumn]??"");return date?[{date,value:numeric(row[valueColumn]??"")}]:[]});
   }
   const report=reportFromWorkbook(file.name,sheets,kind),valueColumn=matchColumn(report.headers,kind==="tiktok"?["gmv"]:revenueTerms),value=total(report,valueColumn);
@@ -74,7 +80,7 @@ export async function parseDatedReport(file:File,kind:"views"|"tiktok"|"shopee")
 function numeric(value:string){const digits=value.replace(/[^\d-]/g,"");const parsed=Number(digits);return Number.isSafeInteger(parsed)&&parsed>=0?parsed:0}
 function total(report:Report|undefined,index:number){return report&&index>=0?report.rows.reduce((sum,row)=>sum+numeric(row[index]??""),0):0}
 function matchColumn(headers:string[],terms:string[]){let best=-1,score=0;headers.forEach((header,index)=>{const current=headerScore(header,terms);if(current>score){best=index;score=current}});return best}
-const viewsTerms=["total viewers","viewer","video views","views","tayangan","ditonton"];
+const viewsTerms=["video views","total viewers","viewer","views","tayangan","ditonton"];
 const revenueTerms=["gross revenue","total revenue","revenue","omset","omzet","gmv","penjualan","sales","income"];
 function ReportSource({title,description,report,onUpload,fields}:{title:string;description:string;report:Report|undefined;onUpload:(event:ChangeEvent<HTMLInputElement>)=>void;fields:{label:string;terms:string[];value:number;onChange:(value:number)=>void}[]}){
   const id=useId();
