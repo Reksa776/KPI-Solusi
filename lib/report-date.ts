@@ -1,6 +1,16 @@
 const monthNumbers: Record<string, number> = {
-  january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
-  july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
+  january: 1, jan: 1, januari: 1,
+  february: 2, feb: 2, februari: 2,
+  march: 3, mar: 3, maret: 3,
+  april: 4, apr: 4,
+  may: 5, mei: 5,
+  june: 6, jun: 6, juni: 6,
+  july: 7, jul: 7, juli: 7,
+  august: 8, aug: 8, agustus: 8, agu: 8,
+  september: 9, sep: 9,
+  october: 10, oct: 10, oktober: 10, okt: 10,
+  november: 11, nov: 11, nopember: 11,
+  december: 12, dec: 12, desember: 12, des: 12,
 };
 
 function toYear(value: string | undefined, fallbackYear: number): number {
@@ -36,7 +46,7 @@ export function parseReportDate(input: string, fallbackYear = new Date().getFull
   const local = value.match(/\b(0?[1-9]|[12]\d|3[01])[-/.](0?[1-9]|1[0-2])[-/.](\d{2}|\d{4})\b/);
   if (local) return formatDate(toYear(local[3], fallbackYear), Number(local[2]), Number(local[1]));
 
-  const monthPattern = Object.keys(monthNumbers).join("|");
+  const monthPattern = Object.keys(monthNumbers).sort((left, right) => right.length - left.length).join("|");
   const dayFirst = value.match(new RegExp(`\\b(\\d{1,2})\\s+(${monthPattern})(?:\\s+(\\d{2}|\\d{4}))?\\b`, "i"));
   if (dayFirst) return formatDate(toYear(dayFirst[3], fallbackYear), monthNumbers[dayFirst[2].toLowerCase()], Number(dayFirst[1]));
 
