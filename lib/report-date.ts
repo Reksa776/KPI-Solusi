@@ -18,7 +18,7 @@ function formatDate(year: number, month: number, day: number): string {
 
 /** Parses common spreadsheet date strings without relying on browser locale heuristics. */
 export function parseReportDate(input: string, fallbackYear = new Date().getFullYear()): string {
-  const value = input.trim().replace(/^'+/, "").replace(/\s+/g, " ");
+  const value = input.trim().replace(/^[\u0027\u2018\u2019\u02bb\u02bc\u0060\u0022]+/u, "").replace(/\s+/g, " ").trim();
   if (!value) return "";
 
   // Excel's 1900 date serial is sometimes exposed as a plain number in sheet XML.
@@ -37,11 +37,11 @@ export function parseReportDate(input: string, fallbackYear = new Date().getFull
   if (local) return formatDate(toYear(local[3], fallbackYear), Number(local[2]), Number(local[1]));
 
   const monthPattern = Object.keys(monthNumbers).join("|");
-  const monthFirst = value.match(new RegExp(`\\b(${monthPattern})\\s+(\\d{1,2})(?:,?\\s+(\\d{2}|\\d{4}))?\\b`, "i"));
-  if (monthFirst) return formatDate(toYear(monthFirst[3], fallbackYear), monthNumbers[monthFirst[1].toLowerCase()], Number(monthFirst[2]));
-
   const dayFirst = value.match(new RegExp(`\\b(\\d{1,2})\\s+(${monthPattern})(?:\\s+(\\d{2}|\\d{4}))?\\b`, "i"));
   if (dayFirst) return formatDate(toYear(dayFirst[3], fallbackYear), monthNumbers[dayFirst[2].toLowerCase()], Number(dayFirst[1]));
+
+  const monthFirst = value.match(new RegExp(`\\b(${monthPattern})\\s+(\\d{1,2})(?:,?\\s+(\\d{2}|\\d{4}))?\\b`, "i"));
+  if (monthFirst) return formatDate(toYear(monthFirst[3], fallbackYear), monthNumbers[monthFirst[1].toLowerCase()], Number(monthFirst[2]));
 
   return "";
 }

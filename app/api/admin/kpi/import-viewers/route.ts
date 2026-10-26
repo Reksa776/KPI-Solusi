@@ -74,37 +74,41 @@ function parseViewRows(bytes: Buffer) {
   if (!workbook || !rels) throw new Error("Struktur workbook Excel tidak ditemukan.");
   const workbookXml = workbook.toString("utf8");
   const sheetTags = Array.from(workbookXml.matchAll(/<sheet\b[^>]*>/gi), match => match[0]);
-  const sheetTag = sheetTags.find(tag => /^overview$/i.test(attribute(tag, "name")))
-    ?? sheetTags.find(tag => /^viewers$/i.test(attribute(tag, "name")));
-  if (!sheetTag) throw new Error("Sheet Overview atau Viewers tidak ditemukan di file.");
-  const relationshipId = attribute(sheetTag, "r:id");
-  const relationTag = Array.from(rels.toString("utf8").matchAll(/<Relationship\b[^>]*>/g), match => match[0]).find(tag => attribute(tag, "Id") === relationshipId);
-  if (!relationTag) throw new Error("Relasi sheet laporan tidak ditemukan.");
-  const target = attribute(relationTag, "Target");
-  const path = target.startsWith("/") ? target.slice(1) : `xl/${target}`;
-  const normalizedPath = path.split("/").reduce<string[]>((parts, part) => part === ".." ? parts.slice(0, -1) : part === "." || !part ? parts : [...parts, part], []).join("/");
-  const sheet = zipEntry(bytes, normalizedPath);
-  if (!sheet) throw new Error("Data sheet laporan tidak dapat dibaca.");
-
+  if (!sheetTags.length) throw new Error("Sheet laporan tidak ditemukan di file.");
+  const relationTags = Array.from(rels.toString("utf8").matchAll(/<Relationship\b[^>]*>/g), match => match[0]);
   const sharedXml = zipEntry(bytes, "xl/sharedStrings.xml")?.toString("utf8") ?? "";
   const shared = Array.from(sharedXml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g), match => xmlText(match[1]));
-  const sheetXml = sheet.toString("utf8");
-  const rows = Array.from(sheetXml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g), rowMatch => {
-    const values: string[] = [];
-    for (const cellMatch of rowMatch[1].matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/g)) {
-      const ref = attribute(cellMatch[1], "r");
-      const index = columnIndex(ref);
-      if (index < 0) continue;
-      const type = attribute(cellMatch[1], "t");
-      const value = cellMatch[2].match(/<v\b[^>]*>([\s\S]*?)<\/v>/)?.[1] ?? "";
-      values[index] = type === "s" ? shared[Number(value)] ?? "" : type === "inlineStr" ? xmlText(cellMatch[2]) : decodeXml(value);
-    }
-    return values;
-  });
   const normalize = (value: string) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
   const viewHeader = (value: string) => /^(video\s*views|total\s*viewers|viewers|views)$/i.test(normalize(value));
-  const headerIndex = rows.findIndex(row => row.some(value => normalize(value) === "date") && row.some(viewHeader));
-  if (headerIndex < 0) throw new Error("Kolom Date dan Video Views tidak ditemukan.");
+  const orderedTags = [...sheetTags].sort((left, right) => {
+    const priority = (tag: string) => /^overview$/i.test(attribute(tag, "name")) ? 0 : /^viewers$/i.test(attribute(tag, "name")) ? 1 : 2;
+    return priority(left) - priority(right);
+  });
+  let rows: string[][] = [], headerIndex = -1;
+  for (const sheetTag of orderedTags) {
+    const relationshipId = attribute(sheetTag, "r:id");
+    const relationTag = relationTags.find(tag => attribute(tag, "Id") === relationshipId);
+    if (!relationTag) continue;
+    const target = attribute(relationTag, "Target");
+    const path = target.startsWith("/") ? target.slice(1) : `xl/${target}`;
+    const normalizedPath = path.split("/").reduce<string[]>((parts, part) => part === ".." ? parts.slice(0, -1) : part === "." || !part ? parts : [...parts, part], []).join("/");
+    const sheet = zipEntry(bytes, normalizedPath);
+    if (!sheet) continue;
+    const candidateRows = Array.from(sheet.toString("utf8").matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g), rowMatch => {
+      const values: string[] = [];
+      for (const cellMatch of rowMatch[1].matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/g)) {
+        const index = columnIndex(attribute(cellMatch[1], "r"));
+        if (index < 0) continue;
+        const type = attribute(cellMatch[1], "t");
+        const value = cellMatch[2].match(/<v\b[^>]*>([\s\S]*?)<\/v>/)?.[1] ?? "";
+        values[index] = type === "s" ? shared[Number(value)] ?? "" : type === "inlineStr" ? xmlText(cellMatch[2]) : decodeXml(value);
+      }
+      return values;
+    });
+    const candidateHeader = candidateRows.findIndex(row => row.some(value => normalize(value) === "date") && row.some(viewHeader));
+    if (candidateHeader >= 0) { rows = candidateRows; headerIndex = candidateHeader; break; }
+  }
+  if (headerIndex < 0) throw new Error("Kolom Date dan Video Views tidak ditemukan di sheet Overview atau Viewers.");
   const dateIndex = rows[headerIndex].findIndex(value => normalize(value) === "date");
   const videoViewsIndex = rows[headerIndex].findIndex(value => normalize(value) === "video views");
   const viewersIndex = videoViewsIndex >= 0 ? videoViewsIndex : rows[headerIndex].findIndex(viewHeader);
