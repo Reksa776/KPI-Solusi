@@ -30,15 +30,7 @@ export default async function PublicDaePerformancePage({searchParams}:{searchPar
     const requestedMonth=query.week?.slice(0,7)??currentMonth;
     const requestedPeriods=Array.from({length:5},(_,index)=>getMonthWeekStart(requestedMonth,index+1)).filter((value):value is string=>Boolean(value));
     const activeWeek=query.week&&requestedPeriods.includes(query.week)?query.week:monthWeekStartForDate(currentDate)??requestedPeriods[0]??"";
-    const monthStart=activeWeek?new Date(`${activeWeek.slice(0,7)}-01T00:00:00Z`):null;
-    const periodWeeks:string[]=[];
-    if(monthStart){
-      const weekday=monthStart.getUTCDay();
-      monthStart.setUTCDate(monthStart.getUTCDate()+((8-weekday)%7));
-      const monthKey=activeWeek.slice(0,7);
-      while(monthStart.toISOString().slice(0,7)===monthKey&&periodWeeks.length<5){periodWeeks.push(monthStart.toISOString().slice(0,10));monthStart.setUTCDate(monthStart.getUTCDate()+7)}
-    }
-    while(periodWeeks.length<5)periodWeeks.push("");
+    const periodWeeks=Array.from({length:5},(_,index)=>getMonthWeekStart(activeWeek.slice(0,7),index+1)??"");
     const reportWeeks=periodWeeks.filter(Boolean);
     const reportQuery=reportWeeks.length?db.execute<DaeReport[]>(`SELECT dae_person,week_start,team_coordination,daily_report FROM dae_weekly_reports WHERE week_start IN (${reportWeeks.map(()=>"?").join(",")})`,reportWeeks):Promise.resolve([[] as DaeReport[],[]] as const);
     const [[assignmentRows],[strategyWeekRows],[visitWeekRows],[trendAssignments],[trendStrategies],[trendVisits],[weeklyReports]] = await Promise.all([
@@ -55,16 +47,16 @@ export default async function PublicDaePerformancePage({searchParams}:{searchPar
     const assignmentsByDae=new Map<string,Set<number>>();
     for(const assignment of assignmentRows){const ids=assignmentsByDae.get(assignment.dae_person)??new Set<number>();readIds(assignment.agency_client_ids).filter(id=>existingClientIds.has(id)).forEach(id=>ids.add(id));assignmentsByDae.set(assignment.dae_person,ids)}
     const strategyMap=new Map(strategyWeekRows.map(row=>[row.dae_person??"",Number(row.total)])),visitMap=new Map(visitWeekRows.map(row=>[row.dae_person??"",Number(row.total)]));
-    type GradeMetrics={clients:Set<number>;strategies:number;visits:number;coordination:string;dailyReport:string};
+    type GradeMetrics={clients:Set<number>;strategies:number;visits:number;coordination:string;dailyReport:string;hasWeeklyInput:boolean};
     const gradeMetrics=new Map<string,Map<string,GradeMetrics>>();
-    const getGradeMetrics=(week:string,name:string)=>{const people=gradeMetrics.get(week)??new Map<string,GradeMetrics>(),item=people.get(name)??{clients:new Set<number>(),strategies:0,visits:0,coordination:"",dailyReport:""};people.set(name,item);gradeMetrics.set(week,people);return item};
+    const getGradeMetrics=(week:string,name:string)=>{const people=gradeMetrics.get(week)??new Map<string,GradeMetrics>(),item=people.get(name)??{clients:new Set<number>(),strategies:0,visits:0,coordination:"",dailyReport:"",hasWeeklyInput:false};people.set(name,item);gradeMetrics.set(week,people);return item};
     for(const period of reportWeeks)for(const assignment of trendAssignments){const item=getGradeMetrics(period,assignment.dae_person);readIds(assignment.agency_client_ids).filter(id=>existingClientIds.has(id)).forEach(id=>item.clients.add(id))}
     for(const item of trendStrategies){const month=dateValue(item.week_start).slice(0,7);if(item.dae_person)for(const period of reportWeeks.filter(value=>value.slice(0,7)===month))getGradeMetrics(period,item.dae_person).strategies=Number(item.total)}
-    for(const item of trendVisits){const period=dateValue(item.week_start);if(reportWeeks.includes(period)&&item.dae_person)getGradeMetrics(period,item.dae_person).visits=Number(item.total)}
-    for(const report of weeklyReports){const period=dateValue(report.week_start);if(reportWeeks.includes(period)){const item=getGradeMetrics(period,report.dae_person);item.coordination=report.team_coordination??"";item.dailyReport=report.daily_report??""}}
+    for(const item of trendVisits){const period=dateValue(item.week_start);if(reportWeeks.includes(period)&&item.dae_person){const metrics=getGradeMetrics(period,item.dae_person);metrics.visits=Number(item.total);metrics.hasWeeklyInput=true}}
+    for(const report of weeklyReports){const period=dateValue(report.week_start);if(reportWeeks.includes(period)){const item=getGradeMetrics(period,report.dae_person);item.coordination=report.team_coordination??"";item.dailyReport=report.daily_report??"";item.hasWeeklyInput=true}}
     const weeklyGrades=new Map<string,{score:number;grade:string;value:number}>();
     const gradeValues:Record<string,number>={A:5,B:3,C:2,Buruk:1};
-    for(const [period,people] of gradeMetrics){for(const [name,item] of people){const score=daeIndicatorScore({clientRetention:item.clients.size,strategies:item.strategies,visits:item.visits,achievement:item.clients.size,coordination:item.coordination,dailyReport:item.dailyReport});const grade=daeGrade(score);weeklyGrades.set(`${name}\u0000${period}`,{score,grade,value:gradeValues[grade]})}}
+    for(const [period,people] of gradeMetrics){for(const [name,item] of people){if(!item.hasWeeklyInput)continue;const score=daeIndicatorScore({clientRetention:item.clients.size,clientTarget:item.clients.size,strategies:item.strategies,visits:item.visits,achievement:item.clients.size,coordination:item.coordination,dailyReport:item.dailyReport});const grade=daeGrade(score);weeklyGrades.set(`${name}\u0000${period}`,{score,grade,value:gradeValues[grade]})}}
     const preliminary=[...assignmentsByDae].map(([name,ids])=>({name,clients:ids.size,strategies:strategyMap.get(name)??0,visits:visitMap.get(name)??0,rank:1})).sort((a,b)=>b.clients-a.clients||b.strategies-a.strategies||b.visits-a.visits||a.name.localeCompare(b.name,"id"));
     const rows:DaeOverviewRow[]=preliminary.map(row=>{const rating=weeklyGrades.get(`${row.name}\u0000${activeWeek}`)??{score:0,grade:"Buruk",value:1};return{...row,rank:1+preliminary.filter(other=>other.clients>row.clients).length,score:rating.score,grade:rating.grade}});
     const selectedDae=rows.some(row=>row.name===query.dae)?query.dae:undefined;

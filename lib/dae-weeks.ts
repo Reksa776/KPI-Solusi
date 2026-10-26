@@ -4,8 +4,11 @@ export function getMonthWeekStart(month: string, week: number): string | null {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || !Number.isInteger(week) || week < 1 || week > 5) return null;
   const [year, monthNumber] = month.split("-").map(Number);
   const first = new Date(Date.UTC(year, monthNumber - 1, 1));
-  const offset = (8 - first.getUTCDay()) % 7;
-  const start = new Date(Date.UTC(year, monthNumber - 1, 1 + offset + (week - 1) * 7));
+  // The sheet counts the partial opening days as Week 1, then begins each
+  // following bucket on Monday. In Oct 2026 that yields 1, 5, 12, 19, 26.
+  const firstMonday = 1 + ((8 - first.getUTCDay()) % 7);
+  const startDay = week === 1 ? 1 : firstMonday + (week - 2) * 7;
+  const start = new Date(Date.UTC(year, monthNumber - 1, startDay));
   if (start.getUTCMonth() !== monthNumber - 1) return null;
   return start.toISOString().slice(0, 10);
 }

@@ -1,5 +1,6 @@
 type DaeGradeMetrics = {
   clientRetention: number;
+  clientTarget: number;
   strategies: number;
   visits: number;
   achievement: number;
@@ -15,13 +16,14 @@ function metricValue(value: string | number | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-/** Mirrors the latest DAE worksheet: indicator targets [5, 5, 10, 6, 100, 6] and weights [30, 25, 20, 15, 7.5, 2.5]. */
+/** Mirrors the DAE worksheet: strategy target is 4; retention uses existing clients; remaining targets are [10, 6, 100, 6]. */
 export function daeIndicatorScore(metrics: DaeGradeMetrics): number {
   const coordination = metricValue(metrics.coordination);
   const dailyReport = metricValue(metrics.dailyReport);
+  const clientTarget = Math.max(0, metrics.clientTarget);
   const score =
-    (metrics.clientRetention / 5) * 30 +
-    (metrics.strategies / 5) * 25 +
+    (clientTarget ? metrics.clientRetention / clientTarget : 0) * 30 +
+    (metrics.strategies / 4) * 25 +
     (metrics.visits / 10) * 20 +
     (metrics.achievement / 6) * 15 +
     (coordination / 100) * 7.5 +

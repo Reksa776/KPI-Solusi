@@ -17,7 +17,7 @@ function readIds(value: unknown): number[] {
 function validWeek(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value && date.getUTCDay() === 1;
+  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value && Boolean(monthWeekFromStart(value));
 }
 
 export async function saveDaeWeeklyReport(form: FormData) {

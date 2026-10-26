@@ -24,7 +24,7 @@ export async function saveDaeVisits(form: FormData) {
   const rawClientIds = form.getAll("agency_client_ids").map(value => Number(String(value)));
   const visitCounts = form.getAll("visit_counts").map(value => Number(String(value)));
   const clientIds = [...new Set(rawClientIds)];
-  const weekValid=/^\d{4}-\d{2}-\d{2}$/.test(weekStart)&&!Number.isNaN(Date.parse(`${weekStart}T00:00:00Z`));
+  const weekValid=/^\d{4}-\d{2}-\d{2}$/.test(weekStart)&&!Number.isNaN(Date.parse(`${weekStart}T00:00:00Z`))&&Boolean(monthWeekFromStart(weekStart));
   if (!person || !weekValid || !monthWeekFromStart(weekStart) || !clientIds.length || clientIds.length > 100 || rawClientIds.length !== visitCounts.length || clientIds.length !== rawClientIds.length || visitCounts.some(count => !Number.isSafeInteger(count) || count < 1 || count > 1000)) redirect(`${path}?${replacePerson ? `edit=${encodeURIComponent(replacePerson)}&week=${encodeURIComponent(replaceWeekStart)}` : "new=1"}&error=invalid`);
   const db = getDb();
   const [assignments] = await db.execute<(RowDataPacket & { agency_client_ids: unknown })[]>("SELECT agency_client_ids FROM team_activity_entries WHERE entry_type='dae_team' AND dae_person=? ORDER BY updated_at DESC,id DESC LIMIT 1", [person]);

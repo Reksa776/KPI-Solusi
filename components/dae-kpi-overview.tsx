@@ -36,7 +36,7 @@ export default function DaeKpiOverview({ week, weeks, rows, clients, trend, slic
   const selected = rows.find(row => row.name === selectedDae);
   const featured = best;
   const averageGradeLabel = averageGrade === undefined ? "—" : averageGrade >= 4 ? "A" : averageGrade >= 2.5 ? "B" : averageGrade >= 1.5 ? "C" : "Buruk";
-  const validWeeks = periodWeeks.filter(Boolean);
+  const validWeeks = periodWeeks.filter(period => Boolean(period && weeklyData[period]?.grade));
   const totalIndicator = selected && validWeeks.length ? `${Math.round(validWeeks.reduce((sum, period) => sum + (weeklyData[period]?.score ?? 0), 0) / validWeeks.length)}%` : "—";
   return <div className="dae-overview-layout">
     <section className="dae-overview-toolbar"><form action={route} method="get">{!publicMode&&<input type="hidden" name="scope" value="dae"/>}{selectedDae&&<input type="hidden" name="dae" value={selectedDae}/>}<label htmlFor="dae-week-filter">Periode laporan</label><div><select id="dae-week-filter" name="week" defaultValue={week}>{weeks.map(value => <option key={value} value={value}>Minggu {weekLabel(value)} · {value}</option>)}</select><button type="submit">Tampilkan</button></div></form><article className="dae-best-card"><span className="dae-best-icon">✳</span><div><small>DAE terbaik pada periode ini</small><strong>{featured?.name ?? "Belum ada data"}</strong></div>{featured&&<span className={`dae-grade grade-${featured.grade.toLowerCase()}`}>Grade {featured.grade}<small>{featured.score}</small></span>}</article></section>
@@ -54,7 +54,7 @@ export default function DaeKpiOverview({ week, weeks, rows, clients, trend, slic
         <tr><th>Pencapaian Jumlah Klien</th>{periodWeeks.map((period,index)=><td key={`${period}-${index}`}>{selected&&period?number(weeklyData[period]?.achievement??0):"—"}</td>)}</tr>
         <tr><th>Koordinasi & Komunikasi Tim</th>{periodWeeks.map((period,index)=><td key={`${period}-${index}`} className="dae-funnel-note">{selected&&period?(weeklyData[period]?.coordination||"—"):"—"}</td>)}</tr>
         <tr><th>Laporan Harian</th>{periodWeeks.map((period,index)=><td key={`${period}-${index}`} className="dae-funnel-note">{selected&&period?(weeklyData[period]?.dailyReport||"—"):"—"}</td>)}</tr>
-        <tr className="dae-funnel-grade-row"><th>Total Indikator</th>{periodWeeks.map((period,index)=><td key={`${period}-${index}`}>{selected&&period?`${weeklyData[period]?.score??0}%`:"—"}</td>)}</tr>
+        <tr className="dae-funnel-grade-row"><th>Total Indikator</th>{periodWeeks.map((period,index)=><td key={`${period}-${index}`}>{selected&&period&&weeklyData[period]?.grade?`${weeklyData[period].score}%`:"—"}</td>)}</tr>
         <tr className="dae-funnel-grade-row"><th>Grade DAE Mingguan</th>{periodWeeks.map((period,index)=><td key={`${period}-${index}`}>{selected&&period?(weeklyData[period]?.grade||"—"):"—"}</td>)}</tr>
       </tbody></table></div>{!selected&&<p className="dae-table-footnote">Klik nama DAE di tabel KPI untuk melihat detail funnel per minggu.</p>}<p className="dae-table-footnote">Retensi dan pencapaian dihitung dari jumlah client yang dipegang. Koordinasi serta laporan harian berasal dari input manual.</p></section>
 
