@@ -1,15 +1,12 @@
 import { inflateRawSync } from "node:zlib";
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyAdminScope } from "@/lib/admin-auth";
+import { parseReportDate } from "@/lib/report-date";
 
 export const runtime = "nodejs";
 const maxUpload = 12 * 1024 * 1024;
 const maxExpandedEntry = 24 * 1024 * 1024;
 const encoder = new TextDecoder();
-const monthNumbers: Record<string, number> = {
-  january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
-  july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
-};
 
 function zipEntry(bytes: Buffer, wanted: string) {
   let end = -1;
@@ -131,13 +128,8 @@ export async function POST(request: NextRequest) {
     const bytes = Buffer.from(await file.arrayBuffer());
     const year = Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Jakarta", year: "numeric" }).format(new Date()));
     const results = parseViewRows(bytes).flatMap(({ date, value }) => {
-      const match = date.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})\b/i);
-      if (!match) return [];
-      const month = monthNumbers[match[1].toLowerCase()];
-      const day = Number(match[2]);
-      const formatted = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      const parsed = new Date(`${formatted}T00:00:00Z`);
-      return !Number.isNaN(parsed.valueOf()) && parsed.toISOString().slice(0, 10) === formatted ? [{ date: formatted, value }] : [];
+      const formatted = parseReportDate(date, year);
+      return formatted ? [{ date: formatted, value }] : [];
     });
     if (!results.length) return NextResponse.json({ error: "Tidak ada tanggal dan Video Views yang valid di sheet Overview atau Viewers." }, { status: 422 });
     return NextResponse.json({ results });

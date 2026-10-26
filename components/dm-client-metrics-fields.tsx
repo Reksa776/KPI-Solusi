@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState, type ChangeEvent } from "react";
+import { parseReportDate } from "@/lib/report-date";
 
 type Metrics={contents:number;video_views:number;tiktok_sales:number;shopee_sales:number};
 type Report={name:string;headers:string[];rows:string[][];notice?:string};
@@ -53,12 +54,7 @@ function reportFromWorkbook(fileName:string,sheets:Sheet[],kind:"views"|"tiktok"
   const notice=kind==="views"?"Menggunakan Video Views per tanggal; untuk ringkasan satu angka, nilainya dijumlahkan.":kind==="tiktok"?"Mengambil GMV dari baris Total nilai pada ringkasan.":"Mengambil Total Penjualan dari ringkasan Pesanan Dibayar.";
   return{name:fileName,headers,rows,notice};
 }
-function reportDate(value:string,fallbackYear=new Date().getFullYear()):string{
-  const iso=value.match(/\b(20\d{2})[-/](0?[1-9]|1[0-2])[-/](0?[1-9]|[12]\d|3[01])\b/);if(iso)return`${iso[1]}-${iso[2].padStart(2,"0")}-${iso[3].padStart(2,"0")}`;
-  const local=value.match(/\b(0?[1-9]|[12]\d|3[01])[-/](0?[1-9]|1[0-2])[-/](20\d{2})\b/);if(local)return`${local[3]}-${local[2].padStart(2,"0")}-${local[1].padStart(2,"0")}`;
-  const named=value.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})\b/i);if(named){const month=new Date(`${named[1]} 1, 2000`).getMonth()+1;return`${fallbackYear}-${String(month).padStart(2,"0")}-${named[2].padStart(2,"0")}`}
-  return"";
-}
+const reportDate = (value: string, fallbackYear = new Date().getFullYear()) => parseReportDate(value, fallbackYear);
 export async function parseDatedReport(file:File,kind:"views"|"tiktok"|"shopee"):Promise<{date:string;value:number}[]>{
   if(!file.name.toLowerCase().endsWith(".xlsx"))throw new Error("Input banyak tanggal memerlukan file Excel .xlsx.");
   const sheets=await parseXlsx(file),normalize=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
