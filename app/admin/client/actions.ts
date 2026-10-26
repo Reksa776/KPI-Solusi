@@ -20,11 +20,13 @@ export async function saveAgencyClient(form: FormData) {
     if (!rows.length) redirect("/admin/client?error=notfound");
     await db.execute("UPDATE agency_clients SET client_name=?,client_type=? WHERE id=?", [name, kind, id]);
     revalidatePath(`/admin/client/${id}`);
+    revalidatePath("/admin");
   } else {
     const user = await getAdminSessionUser();
     await db.execute("INSERT INTO agency_clients (client_name,client_type,created_by) VALUES (?,?,?)", [name, kind, user?.id ?? null]);
   }
   revalidatePath("/admin/client");
+  revalidatePath("/admin");
   redirect(id ? "/admin/client?saved=1" : "/admin/client?saved=1");
 }
 
@@ -34,5 +36,6 @@ export async function deleteAgencyClient(form: FormData) {
   if (!Number.isSafeInteger(id) || id < 1) redirect("/admin/client?error=invalid");
   await getDb().execute("DELETE FROM agency_clients WHERE id=?", [id]);
   revalidatePath("/admin/client");
+  revalidatePath("/admin");
   redirect("/admin/client?deleted=1");
 }

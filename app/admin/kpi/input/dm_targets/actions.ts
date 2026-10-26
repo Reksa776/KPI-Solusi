@@ -38,6 +38,7 @@ export async function saveDmContentTargets(form: FormData) {
   });
   revalidatePath(path);
   revalidatePath("/admin/kpi");
+  revalidatePath("/admin");
   revalidatePath("/admin/kpi/input/dm_client");
   redirect(`${path}?month=${month}&dm_id=${dmId}&client_id=${dmId}:${clientId}&saved=1`);
 }

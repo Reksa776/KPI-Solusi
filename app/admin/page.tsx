@@ -10,6 +10,7 @@ import DashboardPerformanceTable from "@/components/dashboard-performance-table"
 import DashboardPerformanceChart from "@/components/dashboard-performance-chart";
 
 export const metadata: Metadata = { title: "Dashboard Performa | Solusi Sejalan" };
+export const dynamic = "force-dynamic";
 type Score=RowDataPacket&{full_name:string;contents:number|string;video_views:number|string;tiktok_sales:number|string;shopee_sales:number|string;secondary:number|string;assigned_clients?:number|string;strategies?:number|string;visits?:number|string};
 type Daily=RowDataPacket&{day:string;total:number|string};
 const count=(v:number|string|undefined)=>Number(v??0);

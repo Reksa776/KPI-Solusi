@@ -62,6 +62,7 @@ export async function saveDaeWeeklyReport(form: FormData) {
   }
   revalidatePath(path);
   revalidatePath("/admin/kpi");
+  revalidatePath("/admin");
   redirect(`${path}?saved=1`);
 }
 
@@ -72,5 +73,6 @@ export async function deleteDaeWeeklyReport(form: FormData) {
   await getDb().execute("DELETE FROM dae_weekly_reports WHERE id=?", [id]);
   revalidatePath(path);
   revalidatePath("/admin/kpi");
+  revalidatePath("/admin");
   redirect(`${path}?deleted=1`);
 }

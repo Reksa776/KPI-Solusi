@@ -42,7 +42,7 @@ export async function saveDmClientAssignment(form:FormData) {
     if(error&&typeof error==="object"&&"code" in error)fail("duplicate");
     throw error;
   }
-  revalidatePath(path); revalidatePath("/admin/kpi/input/dm_team"); revalidatePath("/admin/kpi");
+  revalidatePath(path); revalidatePath("/admin/kpi/input/dm_team"); revalidatePath("/admin/kpi"); revalidatePath("/admin");
   redirect(`${path}?dm_id=${dmId}&client_id=${clientId}&saved=1`);
 }
 
@@ -53,6 +53,6 @@ export async function deleteDmClientAssignment(form:FormData) {
   const [history]=await getDb().execute<(RowDataPacket&{total:bigint|number})[]>("SELECT COUNT(*) AS total FROM team_activity_entries WHERE entry_type='dm_client' AND dm_team_member_id=? AND agency_client_id=?",[dmId,clientId]);
   if(Number(history[0]?.total??0)>0)redirect(`${path}?dm_id=${dmId}&client_id=${clientId}&error=inuse`);
   await getDb().execute("DELETE FROM dm_client_assignments WHERE dm_team_member_id=? AND agency_client_id=?",[dmId,clientId]);
-  revalidatePath(path); revalidatePath("/admin/kpi");
+  revalidatePath(path); revalidatePath("/admin/kpi"); revalidatePath("/admin");
   redirect(`${path}?deleted=1`);
 }

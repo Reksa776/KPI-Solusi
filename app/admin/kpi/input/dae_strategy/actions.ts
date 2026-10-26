@@ -39,6 +39,7 @@ export async function saveDaeStrategies(form: FormData) {
   });
   revalidatePath(path);
   revalidatePath("/admin/kpi");
+  revalidatePath("/admin");
   redirect(`${path}?saved=1`);
 }
 
@@ -50,5 +51,6 @@ export async function deleteDaeStrategiesByPerson(form: FormData) {
   await getDb().execute("DELETE FROM dae_strategy_details WHERE dae_person=? AND week_start>=? AND week_start<DATE_ADD(?,INTERVAL 1 MONTH)", [person,`${month}-01`,`${month}-01`]);
   revalidatePath(path);
   revalidatePath("/admin/kpi");
+  revalidatePath("/admin");
   redirect(`${path}?deleted=1`);
 }

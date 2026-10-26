@@ -20,6 +20,7 @@ export async function saveKpiTarget(form: FormData) {
   const user = await getAdminSessionUser();
   await getDb().execute("INSERT INTO team_kpi_targets (scope,metric,period_month,target_value,updated_by) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE target_value=VALUES(target_value),updated_by=VALUES(updated_by)", [scope, metric, month, value, user?.id ?? null]);
   revalidatePath("/admin/kpi");
+  revalidatePath("/admin");
   redirect(`/admin/kpi?scope=${scope}&saved=target`);
 }
 
@@ -91,6 +92,7 @@ export async function saveTeamEntry(form: FormData) {
     await db.execute("INSERT INTO team_activity_entries (scope,entry_type,title,client_name,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,notes,assigned_user_id,dm_team_member_id,dm_person,dae_person,client_type,agency_client_id,agency_client_ids,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", [...values, user?.id ?? null]);
   }
   revalidatePath("/admin/kpi");
+  revalidatePath("/admin");
   revalidatePath(`/admin/kpi/input/${type}`);
   if (type === "dm_client" && dmMemberId && selectedAgencyClientId) redirect(`/admin/kpi/input/dm_client?dm_id=${dmMemberId}&client_id=${selectedAgencyClientId}&saved=1`);
   redirect(`/admin/kpi/input/${type}?saved=1`);
@@ -149,6 +151,7 @@ export async function saveDmClientBatch(form: FormData) {
     throw error;
   }
   revalidatePath("/admin/kpi");
+  revalidatePath("/admin");
   revalidatePath("/admin/kpi/input/dm_client");
   revalidatePath("/admin/kpi/input/dm_team");
   redirect(pairUrl(undefined, true));
@@ -176,7 +179,7 @@ export async function saveDmClientDailyReports(form: FormData) {
     if(conflicts.some(row=>(row.input_frequency==="weekly"&&(Number(row.video_views)>0||Number(row.tiktok_sales)>0||Number(row.shopee_sales)>0))||(row.input_frequency==="daily"&&String(row.activity_date).slice(0,10)===dates[index])))throw new Error("DM_PERIOD_CONFLICT");
     await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,client_name,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,assigned_user_id,dm_team_member_id,dm_person,client_type,agency_client_id,created_by) VALUES ('dm','dm_client',?,?,?,?, 'daily', ?,?,?,?,0,0,0,NULL,?,?,?,?,?)",[`Performa ${clients[0].client_name}`,clients[0].client_name,dates[index],weekStart,metrics.contents[index],metrics.video_views[index],metrics.tiktok_sales[index],metrics.shopee_sales[index],members[0].id,members[0].full_name,clients[0].client_type,clients[0].id,user?.id??null]);
   }})}catch(error){if(error instanceof Error&&error.message==="DM_PERIOD_CONFLICT")fail("period");throw error}
-  revalidatePath("/admin/kpi");revalidatePath("/admin/kpi/input/dm_client");revalidatePath("/admin/kpi/input/dm_team");
+  revalidatePath("/admin/kpi");revalidatePath("/admin");revalidatePath("/admin/kpi/input/dm_client");revalidatePath("/admin/kpi/input/dm_team");
   redirect(`${detail}&saved=1`);
 }
 
@@ -198,7 +201,7 @@ export async function saveDmWeeklyContent(form: FormData) {
     if(weekly.length){await tx.execute("UPDATE team_activity_entries SET contents=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND entry_type='dm_client'",[contents,weekly[0].id]);return;}
     await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,client_name,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,assigned_user_id,dm_team_member_id,dm_person,client_type,agency_client_id,created_by) VALUES ('dm','dm_client',?,?,?,?, 'weekly', ?,0,0,0,0,0,0,NULL,?,?,?,?,?)",[`Performa ${clients[0].client_name}`,clients[0].client_name,weekStart,weekStart,contents,members[0].id,members[0].full_name,clients[0].client_type,clients[0].id,user?.id??null]);
   });
-  revalidatePath("/admin/kpi");revalidatePath("/admin/kpi/input/dm_client");
+  revalidatePath("/admin/kpi");revalidatePath("/admin");revalidatePath("/admin/kpi/input/dm_client");
   redirect(`${detail}&saved=1`);
 }
 
@@ -216,6 +219,7 @@ export async function deleteTeamEntry(form: FormData) {
     else await db.execute("DELETE FROM team_activity_entries WHERE id=? AND entry_type=?", [id, type]);
   } else await getDb().execute("DELETE FROM team_activity_entries WHERE id=? AND entry_type=?", [id, type]);
   revalidatePath("/admin/kpi");
+  revalidatePath("/admin");
   revalidatePath(`/admin/kpi/input/${type}`);
   if (type === "dm_client" && Number.isSafeInteger(returnDmId) && returnDmId > 0 && Number.isSafeInteger(returnClientId) && returnClientId > 0) redirect(`/admin/kpi/input/dm_client?dm_id=${returnDmId}&client_id=${returnClientId}&deleted=1`);
   redirect(`/admin/kpi/input/${type}?deleted=1`);
