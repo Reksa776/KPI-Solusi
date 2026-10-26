@@ -7,6 +7,7 @@ import { getAdminSessionUser, verifyAdminSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import { getMonthWeekStart, monthWeekStartForDate } from "@/lib/dae-weeks";
 import { isExistingAgencyClientType } from "@/lib/client-types";
+import { daeGrade, daeIndicatorScore } from "@/lib/dae-grade";
 import { deleteTeamEntry, saveKpiTarget } from "./actions";
 import DaeKpiOverview, { type DaeClientRow, type DaeOverviewRow, type DaeTrendPoint, type DaeTypeSlice, type DaeWeeklyData } from "@/components/dae-kpi-overview";
 import DmKpiOverview, { type DmOverviewRow, type DmTrendPoint, type DmWeeklyRow } from "@/components/dm-kpi-overview";
@@ -100,7 +101,7 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     for(const report of weeklyReports){const period=dateValue(report.week_start);if(reportWeeks.includes(period)){const item=getGradeMetrics(period,report.dae_person);item.coordination=report.team_coordination??"";item.dailyReport=report.daily_report??""}}
     const weeklyGrades=new Map<string,{score:number;grade:string;value:number}>();
     const gradeValues:Record<string,number>={A:5,B:3,C:2,Buruk:1};
-    for(const [period,people] of gradeMetrics){const list=[...people.values()],maxClients=Math.max(0,...list.map(item=>item.clients.size)),maxStrategies=Math.max(0,...list.map(item=>item.strategies)),maxVisits=Math.max(0,...list.map(item=>item.visits));for(const [name,item] of people){const score=Math.round((maxClients?30*item.clients.size/maxClients:0)+(maxStrategies?25*item.strategies/maxStrategies:0)+(maxVisits?20*item.visits/maxVisits:0)+(item.clients.size&&maxClients?15*item.clients.size/maxClients:0)+(item.coordination.trim()?7.5:0)+(item.dailyReport.trim()?2.5:0));const grade=score>=95?"A":score>=80?"B":score>=70?"C":"Buruk";weeklyGrades.set(`${name}\u0000${period}`,{score,grade,value:gradeValues[grade]})}}
+    for(const [period,people] of gradeMetrics){for(const [name,item] of people){const score=daeIndicatorScore({clientRetention:item.clients.size,strategies:item.strategies,visits:item.visits,achievement:item.clients.size,coordination:item.coordination,dailyReport:item.dailyReport});const grade=daeGrade(score);weeklyGrades.set(`${name}\u0000${period}`,{score,grade,value:gradeValues[grade]})}}
     const preliminary=[...assignmentsByDae].map(([name,ids])=>({name,clients:ids.size,strategies:strategyMap.get(name)??0,visits:visitMap.get(name)??0,rank:1})).sort((a,b)=>b.clients-a.clients||b.strategies-a.strategies||b.visits-a.visits||a.name.localeCompare(b.name,"id"));
     const rows:DaeOverviewRow[]=preliminary.map(row=>{const rating=weeklyGrades.get(`${row.name}\u0000${activeWeek}`)??{score:0,grade:"Buruk",value:1};return{...row,rank:1+preliminary.filter(other=>other.clients>row.clients).length,score:rating.score,grade:rating.grade}});
     const selectedDae=rows.some(row=>row.name===query.dae)?query.dae:undefined;
