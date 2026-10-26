@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type PointerEvent } from "react";
+import { useEffect, useMemo, useState, type PointerEvent } from "react";
 import Link from "next/link";
 import KpiExcelExport from "@/components/kpi-excel-export";
 
@@ -23,6 +23,7 @@ export default function DmKpiOverview({ month, weeklyMonth, rows, trends, select
   const monthName=new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(`${month}-01T12:00:00Z`));
   const defaultTrendWeek=availableWeeks.includes(currentWeek)?currentWeek:availableWeeks.at(-1)??"";
   const [selectedTrendWeek,setSelectedTrendWeek]=useState<string|null>(null);
+  useEffect(()=>setSelectedTrendWeek(null),[month,currentWeek]);
   const activeTrendWeek=selectedTrendWeek&&availableWeeks.includes(selectedTrendWeek)?selectedTrendWeek:defaultTrendWeek;
   const points=useMemo(()=>{
     const scoped=trends.filter(point=>point.dm===(selectedDm??"__all__"));
