@@ -6,9 +6,10 @@ const items = [
   { id: "general", label: "Overview umum", href: "/performa", icon: "◫" },
   { id: "dm", label: "Overview DM", href: "/performa/dm", icon: "↗" },
   { id: "dae", label: "Overview DAE", href: "/performa/dae", icon: "⌁" },
+  { id: "client", label: "Overview Client", href: "/performa/client", icon: "▤" },
 ] as const;
 
-export default function PublicPerformanceShell({ active, eyebrow, title, description, children }: { active: "general" | "dm" | "dae"; eyebrow: string; title: string; description: string; children: ReactNode }) {
+export default function PublicPerformanceShell({ active, eyebrow, title, description, children }: { active: "general" | "dm" | "dae" | "client"; eyebrow: string; title: string; description: string; children: ReactNode }) {
   return <div className="public-performance">
     <aside className="public-performance-sidebar">
       <Link className="public-performance-brand" href="/" aria-label="Solusi Sejalan">
@@ -18,8 +19,7 @@ export default function PublicPerformanceShell({ active, eyebrow, title, descrip
       <nav className="public-performance-tabs" aria-label="Navigasi overview performa">
         {items.map((item) => <Link key={item.id} className={active === item.id ? "active" : ""} href={item.href}><i aria-hidden="true">{item.icon}</i><span>{item.label}</span>{active === item.id && <b aria-hidden="true">›</b>}</Link>)}
       </nav>
-      <Link className="public-performance-login" href="/admin/login"><span aria-hidden="true">↗</span> Login untuk mengelola data</Link>
-      <div className="public-performance-sidebar-note"><span>DATA TERBUKA</span><p>Ringkasan performa tim yang tercatat di Solusi Sejalan.</p></div>
+      <div className="public-performance-sidebar-bottom"><div className="public-performance-sidebar-note"><span>DATA TERBUKA</span><p>Ringkasan performa tim yang tercatat di Solusi Sejalan.</p></div><Link className="public-performance-login" href="/admin/login">Login</Link></div>
     </aside>
     <div className="public-performance-main">
       <header className="public-performance-topbar"><div><span>WORKSPACE</span><b>Overview publik</b></div><Link href="/">Kunjungi website <span aria-hidden="true">↗</span></Link></header>
