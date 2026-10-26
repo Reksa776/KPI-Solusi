@@ -35,7 +35,7 @@ export async function saveDaeWeeklyReport(form: FormData) {
   const [existingRows] = await db.execute<(RowDataPacket & { id: number; client_type: string })[]>("SELECT id,client_type FROM agency_clients");
   const existingClientIds = new Set(existingRows.filter(row => isExistingAgencyClientType(row.client_type)).map(row => Number(row.id)));
   const clients = new Set(assignments.flatMap(row => readIds(row.agency_client_ids)).filter(clientId => existingClientIds.has(clientId)));
-  const [strategies] = await db.execute<(RowDataPacket & { total: number })[]>("SELECT COUNT(*) AS total FROM dae_strategy_details WHERE dae_person=? AND week_start=?", [person, week]);
+  const [strategies] = await db.execute<(RowDataPacket & { total: number })[]>("SELECT COUNT(*) AS total FROM dae_strategy_details WHERE dae_person=? AND week_start>=? AND week_start<DATE_ADD(?,INTERVAL 1 MONTH)", [person,`${week.slice(0,7)}-01`,`${week.slice(0,7)}-01`]);
   const [visits] = await db.execute<(RowDataPacket & { total: number })[]>("SELECT COALESCE(SUM(visit_count),0) AS total FROM dae_visit_details WHERE dae_person=? AND week_start=?", [person, week]);
   const [weekAssignments] = await db.execute<Assignment[]>("SELECT e.dae_person,e.agency_client_ids FROM team_activity_entries e WHERE e.entry_type='dae_team' AND e.dae_person IS NOT NULL AND TRIM(e.dae_person)<>'' AND e.id=(SELECT latest.id FROM team_activity_entries latest WHERE latest.entry_type='dae_team' AND latest.dae_person=e.dae_person ORDER BY latest.updated_at DESC,latest.id DESC LIMIT 1)");
   const counts = new Map<string, Set<number>>();
