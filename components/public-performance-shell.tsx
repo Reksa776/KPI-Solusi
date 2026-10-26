@@ -10,7 +10,7 @@ const items = [
 ] as const;
 
 export default function PublicPerformanceShell({ active, eyebrow, title, description, children }: { active: "general" | "dm" | "dae" | "client"; eyebrow: string; title: string; description: string; children: ReactNode }) {
-  return <div className="public-performance">
+  return <div className={`public-performance${active === "client" ? " client-performance" : ""}`}>
     <aside className="public-performance-sidebar">
       <Link className="public-performance-brand" href="/" aria-label="Solusi Sejalan">
         <BrandIcon /><span>solusi sejalan<small>PERFORMANCE</small></span>
