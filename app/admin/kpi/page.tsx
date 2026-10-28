@@ -8,6 +8,7 @@ import { getDb } from "@/lib/db";
 import { getMonthWeekStart, monthWeekStartForDate } from "@/lib/dae-weeks";
 import { isExistingAgencyClientType } from "@/lib/client-types";
 import { daeGrade, daeIndicatorScore } from "@/lib/dae-grade";
+import { monthlyCumulativeStrategyCount } from "@/lib/dae-strategies";
 import { deleteTeamEntry, saveKpiTarget } from "./actions";
 import DaeKpiOverview, { type DaeClientRow, type DaeOverviewRow, type DaeTrendPoint, type DaeTypeSlice, type DaeWeeklyData } from "@/components/dae-kpi-overview";
 import DmKpiOverview, { type DmOverviewRow, type DmTrendPoint, type DmWeeklyRow } from "@/components/dm-kpi-overview";
@@ -69,6 +70,7 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     const activeWeek=query.week&&requestedPeriods.includes(query.week)?query.week:monthWeekStartForDate(currentDate)??requestedPeriods[0]??"";
     const periodWeeks=Array.from({length:5},(_,index)=>getMonthWeekStart(activeWeek.slice(0,7),index+1)??"");
     const reportWeeks=periodWeeks.filter(Boolean);
+    const trendPeriods=[...weeks].sort().filter(period=>period<=activeWeek).slice(-8);
     const reportQuery=reportWeeks.length?db.execute<DaeReport[]>(`SELECT dae_person,week_start,team_coordination,daily_report FROM dae_weekly_reports WHERE week_start IN (${reportWeeks.map(()=>"?").join(",")})`,reportWeeks):Promise.resolve([[] as DaeReport[],[]] as const);
     const [[assignmentRows],[strategyWeekRows],[visitWeekRows],[trendAssignments],[trendStrategies],[trendVisits],[weeklyReports]] = await Promise.all([
       db.execute<Assignment[]>("SELECT e.dae_person,e.week_start,e.agency_client_ids FROM team_activity_entries e WHERE e.entry_type='dae_team' AND e.dae_person IS NOT NULL AND TRIM(e.dae_person)<>'' AND e.id=(SELECT latest.id FROM team_activity_entries latest WHERE latest.entry_type='dae_team' AND latest.dae_person=e.dae_person ORDER BY latest.updated_at DESC,latest.id DESC LIMIT 1) ORDER BY e.dae_person"),
@@ -83,12 +85,11 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     const existingClientIds=new Set(clientRows.filter(client=>isExistingAgencyClientType(client.client_type)).map(client=>Number(client.id)));
     const assignmentsByDae=new Map<string,Set<number>>();
     for(const assignment of assignmentRows){const ids=assignmentsByDae.get(assignment.dae_person)??new Set<number>();readIds(assignment.agency_client_ids).filter(id=>existingClientIds.has(id)).forEach(id=>ids.add(id));assignmentsByDae.set(assignment.dae_person,ids)}
-    const strategyMap=new Map<string,number>();for(const item of strategyWeekRows){const name=item.dae_person??"";if(dateValue(item.week_start)<=activeWeek)strategyMap.set(name,(strategyMap.get(name)??0)+Number(item.total))}const visitMap=new Map(visitWeekRows.map(row=>[row.dae_person??"",Number(row.total)]));
+    const strategyMap=new Map<string,number>();for(const assignment of trendAssignments)strategyMap.set(assignment.dae_person,monthlyCumulativeStrategyCount(strategyWeekRows,activeWeek,assignment.dae_person));const visitMap=new Map(visitWeekRows.map(row=>[row.dae_person??"",Number(row.total)]));
     type GradeMetrics={clients:Set<number>;strategies:number;visits:number;coordination:string;dailyReport:string;hasWeeklyInput:boolean};
     const gradeMetrics=new Map<string,Map<string,GradeMetrics>>();
     const getGradeMetrics=(week:string,name:string)=>{const people=gradeMetrics.get(week)??new Map<string,GradeMetrics>(),item=people.get(name)??{clients:new Set<number>(),strategies:0,visits:0,coordination:"",dailyReport:"",hasWeeklyInput:false};people.set(name,item);gradeMetrics.set(week,people);return item};
-    for(const period of reportWeeks)for(const assignment of trendAssignments){const item=getGradeMetrics(period,assignment.dae_person);readIds(assignment.agency_client_ids).filter(id=>existingClientIds.has(id)).forEach(id=>item.clients.add(id))}
-    for(const period of reportWeeks)for(const item of trendStrategies){const strategyWeek=dateValue(item.week_start);if(item.dae_person&&strategyWeek.slice(0,7)===period.slice(0,7)&&strategyWeek<=period)getGradeMetrics(period,item.dae_person).strategies+=Number(item.total)}
+    for(const period of reportWeeks)for(const assignment of trendAssignments){const item=getGradeMetrics(period,assignment.dae_person);readIds(assignment.agency_client_ids).filter(id=>existingClientIds.has(id)).forEach(id=>item.clients.add(id));item.strategies=monthlyCumulativeStrategyCount(trendStrategies,period,assignment.dae_person)}
     for(const item of trendVisits){const period=dateValue(item.week_start);if(reportWeeks.includes(period)&&item.dae_person){const metrics=getGradeMetrics(period,item.dae_person);metrics.visits=Number(item.total);metrics.hasWeeklyInput=true}}
     for(const report of weeklyReports){const period=dateValue(report.week_start);if(reportWeeks.includes(period)){const item=getGradeMetrics(period,report.dae_person);item.coordination=report.team_coordination??"";item.dailyReport=report.daily_report??"";item.hasWeeklyInput=true}}
     const weeklyGrades=new Map<string,{score:number;grade:string;value:number}>();
@@ -100,7 +101,7 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     const rows:DaeOverviewRow[]=preliminary.map(row=>{const rating=weeklyGrades.get(`${row.name}\u0000${activeWeek}`);return{...row,rank:1+preliminary.filter(other=>other.clients>row.clients).length,score:rating?.score??0,grade:rating?.grade??"Buruk",hasGrade:Boolean(rating)}});
     const selectedDae=rows.some(row=>row.name===query.dae)?query.dae:undefined;
     const weeklyData:Record<string,DaeWeeklyData>={};
-    for(const week of reportWeeks){const strategies=selectedDae?trendStrategies.filter(item=>item.dae_person===selectedDae&&dateValue(item.week_start).slice(0,7)===week.slice(0,7)&&dateValue(item.week_start)<=week).reduce((sum,item)=>sum+Number(item.total),0):0;weeklyData[week]={clients:0,strategies,visits:0,achievement:0,coordination:"",dailyReport:"",grade:"",gradeValue:0,score:0}}
+    for(const week of reportWeeks){const strategies=selectedDae?monthlyCumulativeStrategyCount(trendStrategies,week,selectedDae):0;weeklyData[week]={clients:0,strategies,visits:0,achievement:0,coordination:"",dailyReport:"",grade:"",gradeValue:0,score:0}}
     const clientsByWeek=new Map<string,Set<number>>();
     if(selectedDae)for(const period of reportWeeks)for(const assignment of trendAssignments){if(assignment.dae_person!==selectedDae)continue;const ids=clientsByWeek.get(period)??new Set<number>();readIds(assignment.agency_client_ids).filter(id=>existingClientIds.has(id)).forEach(id=>ids.add(id));clientsByWeek.set(period,ids)}
     if(selectedDae){
@@ -121,9 +122,9 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     const palette=["#d2fb07","#8dbf45","#4ca88b","#c2d976","#7d876c","#d2aa58"];
     const slices:DaeTypeSlice[]=[...sliceMap].map(([label,count],index)=>({label,count,color:palette[index%palette.length]})).sort((a,b)=>b.count-a.count);
     const dateSets=new Map<string,Map<string,Set<number>>>();
-    for(const week of reportWeeks)for(const assignment of trendAssignments){const people=dateSets.get(week)??new Map<string,Set<number>>(),ids=people.get(assignment.dae_person)??new Set<number>();readIds(assignment.agency_client_ids).filter(id=>existingClientIds.has(id)).forEach(id=>ids.add(id));people.set(assignment.dae_person,ids);dateSets.set(week,people)}
+    for(const week of trendPeriods)for(const assignment of trendAssignments){const people=dateSets.get(week)??new Map<string,Set<number>>(),ids=people.get(assignment.dae_person)??new Set<number>();readIds(assignment.agency_client_ids).filter(id=>existingClientIds.has(id)).forEach(id=>ids.add(id));people.set(assignment.dae_person,ids);dateSets.set(week,people)}
     const trendCount=(source:WeeklyCount[])=>{const map=new Map<string,number>();for(const item of source){if(selectedDae&&item.dae_person!==selectedDae)continue;const week=dateValue(item.week_start);map.set(week,(map.get(week)??0)+Number(item.total))}return map};
-    const strategyTrend=new Map<string,number>();for(const period of reportWeeks){const total=trendStrategies.filter(item=>(!selectedDae||item.dae_person===selectedDae)&&item.dae_person&&dateValue(item.week_start).slice(0,7)===period.slice(0,7)&&dateValue(item.week_start)<=period).reduce((sum,item)=>sum+Number(item.total),0);if(total)strategyTrend.set(period,total)}const visitTrend=trendCount(trendVisits);
+    const strategyTrend=new Map<string,number>();for(const period of trendPeriods)strategyTrend.set(period,monthlyCumulativeStrategyCount(trendStrategies,period,selectedDae));const visitTrend=trendCount(trendVisits);
     const trend:DaeTrendPoint[]=[...new Set([...dateSets.keys(),...strategyTrend.keys(),...visitTrend.keys()])].sort().slice(-8).map(week=>({week,clients:selectedDae?(dateSets.get(week)?.get(selectedDae)?.size??0):[...(dateSets.get(week)?.values()??[])].reduce((sum,ids)=>sum+ids.size,0),strategies:strategyTrend.get(week)??0,visits:visitTrend.get(week)??0}));
     const topMonthly=monthlyRanked[0];
     return <div className="admin-page admin-theme-dashboard"><AdminNavigation active="kpi" teamActive="dae-overview"/><main className="admin-main admin-section-main"><AdminTopbar section="Tim" page="Overview DAE"/><div className="admin-shell team-kpi-shell dae-kpi-shell"><section className="admin-heading"><div><span className="eyebrow">WORKSPACE / DAE</span><h1>Overview DAE</h1><p>Pantau kepemilikan client dan aktivitas tim berdasarkan periode mingguan.</p></div><div className="team-kpi-tabs"><Link href="/admin/kpi?scope=dm">DM</Link><Link className="active" href="/admin/kpi?scope=dae">DAE</Link></div></section><DaeKpiOverview week={activeWeek} weeks={weeks} rows={rows} clients={visibleClients} trend={trend} slices={slices} selectedDae={selectedDae} periodWeeks={periodWeeks} weeklyData={weeklyData} averageGrade={averageGrade} monthlyBest={topMonthly?{name:topMonthly.name,grade:topMonthly.grade,score:topMonthly.score,average:topMonthly.average,weeks:topMonthly.weeks}:undefined}/></div></main></div>;

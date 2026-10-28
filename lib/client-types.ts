@@ -11,6 +11,10 @@ export const agencyClientTypes = [
 
 const normalizeLabel = (value: unknown) => String(value ?? "").trim().toLowerCase().replace(/[\s_-]+/g, " ");
 
+export function normalizeAgencyClientName(value: unknown) {
+  return String(value ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").trim().replace(/\s+/g, " ").toLocaleLowerCase("id-ID");
+}
+
 export function normalizeAgencyClientType(value: unknown) {
   const normalized = normalizeLabel(value);
   return agencyClientTypes.find(([key, label]) => normalizeLabel(key) === normalized || normalizeLabel(label) === normalized)?.[0] ?? String(value ?? "").trim().toLowerCase();
