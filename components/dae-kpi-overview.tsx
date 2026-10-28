@@ -6,7 +6,7 @@ import KpiExcelExport from "@/components/kpi-excel-export";
 import DaeTrendChart from "@/components/dae-trend-chart";
 import DaeClientMixChart from "@/components/dae-client-mix-chart";
 
-export type DaeOverviewRow = { name: string; clients: number; strategies: number; visits: number; rank: number; score: number; grade: string };
+export type DaeOverviewRow = { name: string; clients: number; strategies: number; visits: number; rank: number; score: number; grade: string; hasGrade?:boolean };
 export type DaeClientRow = { dae: string; name: string; type: string };
 export type DaeTrendPoint = { week: string; clients: number; strategies: number; visits: number };
 export type DaeTypeSlice = { label: string; count: number; color: string };
@@ -18,7 +18,7 @@ const weekLabel = (value: string) => {
   return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short" }).format(date);
 };
 
-export default function DaeKpiOverview({ week, weeks, rows, clients, trend, slices, selectedDae, periodWeeks, weeklyData, averageGrade, publicMode = false }: { week: string; weeks: string[]; rows: DaeOverviewRow[]; clients: DaeClientRow[]; trend: DaeTrendPoint[]; slices: DaeTypeSlice[]; selectedDae?: string; periodWeeks: string[]; weeklyData: Record<string, DaeWeeklyData>; averageGrade?: number; publicMode?: boolean }) {
+export default function DaeKpiOverview({ week, weeks, rows, clients, trend, slices, selectedDae, periodWeeks, weeklyData, averageGrade, monthlyBest, publicMode = false }: { week: string; weeks: string[]; rows: DaeOverviewRow[]; clients: DaeClientRow[]; trend: DaeTrendPoint[]; slices: DaeTypeSlice[]; selectedDae?: string; periodWeeks: string[]; weeklyData: Record<string, DaeWeeklyData>; averageGrade?: number; monthlyBest?: {name:string;grade:string;score:number;average:number;weeks:number}; publicMode?: boolean }) {
   const route=publicMode?"/performa/dae":"/admin/kpi";
   const [kpiSort,setKpiSort]=useState<"clients"|"strategies"|"visits"|"grade">("clients");
   const [portfolioType,setPortfolioType]=useState("");
@@ -32,14 +32,15 @@ export default function DaeKpiOverview({ week, weeks, rows, clients, trend, slic
   const clientTypes=useMemo(()=>[...new Set(clients.map(client=>client.type).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"id")),[clients]);
   const activePortfolioType=clientTypes.includes(portfolioType)?portfolioType:"";
   const filteredClients=useMemo(()=>activePortfolioType?clients.filter(client=>client.type===activePortfolioType):clients,[clients,activePortfolioType]);
-  const best = [...rows].sort((a, b) => b.clients - a.clients || b.strategies - a.strategies || b.visits - a.visits)[0];
+  const gradeRank=(grade:string)=>grade.toLowerCase()==="a"?4:grade.toLowerCase()==="b"?3:grade.toLowerCase()==="c"?2:1;
+  const best = [...rows].filter(row=>row.hasGrade).sort((a, b) => gradeRank(b.grade)-gradeRank(a.grade)||b.score-a.score||a.name.localeCompare(b.name,"id"))[0];
   const selected = rows.find(row => row.name === selectedDae);
   const featured = best;
   const averageGradeLabel = averageGrade === undefined ? "—" : averageGrade >= 4 ? "A" : averageGrade >= 2.5 ? "B" : averageGrade >= 1.5 ? "C" : "Buruk";
   const validWeeks = periodWeeks.filter(period => Boolean(period && weeklyData[period]?.grade));
   const totalIndicator = selected && validWeeks.length ? `${Math.round(validWeeks.reduce((sum, period) => sum + (weeklyData[period]?.score ?? 0), 0) / validWeeks.length)}%` : "—";
   return <div className="dae-overview-layout">
-    <section className="dae-overview-toolbar"><form action={route} method="get">{!publicMode&&<input type="hidden" name="scope" value="dae"/>}{selectedDae&&<input type="hidden" name="dae" value={selectedDae}/>}<label htmlFor="dae-week-filter">Periode laporan</label><div><select id="dae-week-filter" name="week" defaultValue={week}>{weeks.map(value => <option key={value} value={value}>Minggu {weekLabel(value)} · {value}</option>)}</select><button type="submit">Tampilkan</button></div></form><article className="dae-best-card"><span className="dae-best-icon">✳</span><div><small>DAE terbaik pada periode ini</small><strong>{featured?.name ?? "Belum ada data"}</strong></div>{featured&&<span className={`dae-grade grade-${featured.grade.toLowerCase()}`}>Grade {featured.grade}<small>{featured.score}</small></span>}</article></section>
+    <section className="dae-overview-toolbar"><form action={route} method="get">{!publicMode&&<input type="hidden" name="scope" value="dae"/>}{selectedDae&&<input type="hidden" name="dae" value={selectedDae}/>}<label htmlFor="dae-week-filter">Periode laporan</label><div><select id="dae-week-filter" name="week" defaultValue={week}>{weeks.map(value => <option key={value} value={value}>Minggu {weekLabel(value)} · {value}</option>)}</select><button type="submit">Tampilkan</button></div></form><div className="dae-best-cards"><article className="dae-best-card"><span className="dae-best-icon">✳</span><div><small>Grade terbaik · {week?`Minggu ${weekLabel(week)}`:"minggu ini"}</small><strong>{featured?.name ?? "Belum ada grade"}</strong></div>{featured&&<span className={`dae-grade grade-${featured.grade.toLowerCase()}`}>{featured.grade}<small>{featured.score}%</small></span>}</article><article className="dae-best-card"><span className="dae-best-icon">✦</span><div><small>Grade bulanan terbaik</small><strong>{monthlyBest?.name ?? "Belum ada grade"}</strong></div>{monthlyBest&&<span className={`dae-grade grade-${monthlyBest.grade.toLowerCase()}`}>{monthlyBest.grade}<small>Rata-rata {monthlyBest.average.toFixed(2)}</small></span>}</article></div></section>
     {!publicMode&&<div className="kpi-export-row"><KpiExcelExport scope="dae"/></div>}
 
     <div className="dae-overview-grid">
@@ -49,7 +50,7 @@ export default function DaeKpiOverview({ week, weeks, rows, clients, trend, slic
 
       <section className="dae-overview-panel dae-report-panel"><div className="dae-panel-heading"><div><span>DETAIL FUNNEL</span><h2>{selected ? `Data per DAE · ${selected.name}` : "Data per DAE"}</h2></div><span className="dae-period-pill">Total indikator: {totalIndicator}</span>{!publicMode&&<Link href="/admin/kpi/input/dae_individual">Laporan mingguan ↗</Link>}</div><div className="dae-funnel-table-wrap"><table className="dae-funnel-table"><thead><tr><th>DETAIL FUNNEL</th>{periodWeeks.map((period,index)=><th key={`${period}-${index}`}>MINGGU {index+1}{period&&<small>{weekLabel(period)}</small>}</th>)}</tr></thead><tbody>
         <tr><th>Retensi Klien</th>{periodWeeks.map((period,index)=><td key={`${period}-${index}`}>{selected&&period?number(weeklyData[period]?.clients??0):"—"}</td>)}</tr>
-        <tr><th>Strategi / Ide Bisnis · Bulanan</th><td colSpan={5}>{selected?number(weeklyData[periodWeeks.find(Boolean)??""]?.strategies??0):"—"} strategi pada periode {week.slice(0,7)||"bulan terpilih"}</td></tr>
+        <tr><th>Strategi / Ide Bisnis · Kumulatif Bulanan</th><td colSpan={5}>{selected?number(weeklyData[week]?.strategies??0):"—"} strategi sampai minggu ini · periode {week.slice(0,7)||"bulan terpilih"}</td></tr>
         <tr><th>Kunjungan Klien/Calon Client/Komunitas</th>{periodWeeks.map((period,index)=><td key={`${period}-${index}`}>{selected&&period?number(weeklyData[period]?.visits??0):"—"}</td>)}</tr>
         <tr><th>Pencapaian Jumlah Klien</th>{periodWeeks.map((period,index)=><td key={`${period}-${index}`}>{selected&&period?number(weeklyData[period]?.achievement??0):"—"}</td>)}</tr>
         <tr><th>Koordinasi & Komunikasi Tim</th>{periodWeeks.map((period,index)=><td key={`${period}-${index}`} className="dae-funnel-note">{selected&&period?(weeklyData[period]?.coordination||"—"):"—"}</td>)}</tr>
