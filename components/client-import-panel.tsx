@@ -10,7 +10,7 @@ export default function ClientImportPanel() {
         <label>File Excel (.xlsx)<input type="file" name="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required /></label>
         <button className="button">Import Client</button>
       </form>
-      <small>Kolom wajib: Nama Client dan Jenis Client. Kolom kontak, email, telepon, dan catatan boleh dikosongkan.</small>
+      <small>Isi Nama Client, lalu pilih Jenis Client dari dropdown Excel. Hanya dua kolom tersebut yang diperlukan.</small>
     </div>
   </details>;
 }
