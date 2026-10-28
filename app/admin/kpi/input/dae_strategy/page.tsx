@@ -15,6 +15,7 @@ type Client = RowDataPacket & { id: number; client_name: string; client_type: st
 type Strategy = RowDataPacket & { id: number; dae_person: string; week_start: string | Date; strategy_text: string; agency_client_id: number; client_name: string; client_type: string; created_at: Date | string };
 const clientTypeNames: Record<string, string> = { existing: "Client Existing", prospect: "Calon Client", ex_client: "Ex Client", community: "Community", media: "Media", institution: "Instansi", agency_ph: "Agency / PH", etc: "Etc." };
 const path = "/admin/kpi/input/dae_strategy";
+const monthLabel=(month:string)=>new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(`${month}-01T12:00:00Z`));
 const dateValue=(value:string|Date)=>typeof value==="string"?value.slice(0,10):new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(value);
 function readIds(value:unknown):number[]{try{const parsed=typeof value==="string"?JSON.parse(value):value;return Array.isArray(parsed)?parsed.map(Number).filter(id=>Number.isSafeInteger(id)&&id>0):[]}catch{return[]}}
 const keyOf=(person:string,week:string)=>`${person}\u0000${week}`;

@@ -13,8 +13,9 @@ const kinds: Record<string, string> = { existing: "Client Existing", prospect: "
 export default function DaeStrategyForm({ assignments, initialDaePerson, initialWeekStart, existingStrategies = [] }: { assignments: Assignment[]; initialDaePerson?: string; initialWeekStart?: string; existingStrategies?: ExistingStrategy[] }) {
   const editing = Boolean(initialDaePerson);
   const month = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit" }).format(new Date());
-  const [periodMonth, setPeriodMonth] = useState(initialWeekStart?.slice(0, 7) ?? month);
-  const [periodWeek, setPeriodWeek] = useState(initialWeekStart ?? getMonthWeekStart(initialWeekStart?.slice(0,7)??month,1) ?? `${month}-01`);
+  const initialMonth = initialWeekStart ? initialWeekStart.slice(0, 7) : month;
+  const [periodMonth, setPeriodMonth] = useState(initialMonth);
+  const [periodWeek, setPeriodWeek] = useState(initialWeekStart ?? getMonthWeekStart(initialMonth, 1) ?? `${initialMonth}-01`);
   const [daePerson, setDaePerson] = useState(initialDaePerson ?? "");
   const people = assignments;
   const currentAssignment = people.find(item => item.dae_person === daePerson);
