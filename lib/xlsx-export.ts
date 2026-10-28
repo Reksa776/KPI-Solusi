@@ -1,7 +1,7 @@
 import { deflateRawSync } from "node:zlib";
 
 export type ExcelCell = string | number | boolean | null | undefined;
-export type ExcelSheet = { name: string; rows: ExcelCell[][]; listValidations?: { column:number; fromRow:number; toRow:number; options:string[]; prompt?:string }[] };
+export type ExcelSheet = { name: string; rows: ExcelCell[][]; autoFilterRange?:string; listValidations?: { column:number; fromRow:number; toRow:number; options?:string[]; formula?:string; prompt?:string }[] };
 
 const xml = (value: string) => value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 function columnName(value: number) { let name = ""; for (let current = value; current > 0; current = Math.floor((current - 1) / 26)) name = String.fromCharCode(65 + ((current - 1) % 26)) + name; return name; }
@@ -13,10 +13,10 @@ function worksheet(sheet: ExcelSheet) {
     if (typeof value === "boolean") return `<c r="${reference}" t="b"><v>${value ? 1 : 0}</v></c>`;
     return `<c r="${reference}" t="inlineStr"><is><t xml:space="preserve">${xml(String(value))}</t></is></c>`;
   }).join("")}</row>`).join("");
-  const validListValidations=sheet.listValidations?.filter(item=>item.column>0&&item.fromRow>0&&item.toRow>=item.fromRow&&item.options.length)??[];
-  const validations=validListValidations.map(item=>`<dataValidation type="list" allowBlank="1" showErrorMessage="1" showInputMessage="1"${item.prompt?` promptTitle="Pilih jenis client" prompt="${xml(item.prompt)}"`:""} sqref="${columnName(item.column)}${item.fromRow}:${columnName(item.column)}${item.toRow}"><formula1>"${xml(item.options.join(","))}"</formula1></dataValidation>`).join("");
+  const validListValidations=sheet.listValidations?.filter(item=>item.column>0&&item.fromRow>0&&item.toRow>=item.fromRow&&Boolean(item.formula||item.options?.length))??[];
+  const validations=validListValidations.map(item=>`<dataValidation type="list" allowBlank="1" showErrorMessage="1" showInputMessage="1"${item.prompt?` promptTitle="Pilih jenis client" prompt="${xml(item.prompt)}"`:""} sqref="${columnName(item.column)}${item.fromRow}:${columnName(item.column)}${item.toRow}"><formula1>${item.formula?xml(item.formula):`"${xml((item.options??[]).join(","))}"`}</formula1></dataValidation>`).join("");
   const dataValidations=validations?`<dataValidations count="${validListValidations.length}">${validations}</dataValidations>`:"";
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="18"/><sheetData>${rows}</sheetData><autoFilter ref="A1:${columnName(Math.max(1, ...sheet.rows.map(row => row.length)))}${Math.max(1, sheet.rows.length)}"/>${dataValidations}</worksheet>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="18"/><sheetData>${rows}</sheetData><autoFilter ref="${sheet.autoFilterRange??`A1:${columnName(Math.max(1, ...sheet.rows.map(row => row.length)))}${Math.max(1, sheet.rows.length)}`}"/>${dataValidations}</worksheet>`;
 }
 const crcTable = (() => { const table = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; table[n] = c >>> 0; } return table; })();
 function crc32(value: Buffer) { let crc = 0xffffffff; for (const byte of value) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8); return (crc ^ 0xffffffff) >>> 0; }

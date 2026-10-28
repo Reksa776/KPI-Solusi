@@ -54,7 +54,7 @@ export async function importAgencyClients(form: FormData) {
   let invalid=0;
   for(const row of rows.slice(1)){
     const name=String(row[nameColumn]??"").trim().slice(0,180);
-    if(!name){if(row.some(value=>String(value??"").trim()))invalid++;continue}
+    if(!name)continue;
     const type=normalizeAgencyClientType(row[typeColumn]??"");
     if(!validKinds.has(type)){invalid++;continue}
     const value=(...names:string[])=>{const index=column(...names);return index>=0?String(row[index]??"").trim():""};
