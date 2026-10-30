@@ -39,3 +39,12 @@ export async function saveDmContentTargets(form: FormData) {
   revalidatePath("/admin/kpi/input/dm_client");
   redirect(`${path}?month=${month}&dm_id=${dmId}&client_id=${dmId}:${clientId}&saved=1`);
 }
+
+export async function deleteDmContentTarget(form:FormData) {
+  if(!(await verifyAdminScope("dm")))redirect("/admin/kpi");
+  const month=value(form,"period_month"),dmId=Number(value(form,"dm_team_member_id")),clientId=Number(value(form,"agency_client_id")),weekStart=value(form,"week_start");
+  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||!Number.isSafeInteger(dmId)||dmId<1||!Number.isSafeInteger(clientId)||clientId<1||monthWeekFromStart(weekStart)?.month!==month)redirect(`${path}?month=${encodeURIComponent(month)}&error=invalid`);
+  await getDb().execute("DELETE FROM dm_content_targets WHERE dm_team_member_id=? AND agency_client_id=? AND week_start=?",[dmId,clientId,weekStart]);
+  revalidatePath(path);revalidatePath("/admin/kpi");revalidatePath("/admin");revalidatePath("/admin/kpi/input/dm_client");revalidatePath("/performa/dm");
+  redirect(`${path}?month=${month}&dm_id=${dmId}&client_id=${dmId}:${clientId}&deleted=1`);
+}

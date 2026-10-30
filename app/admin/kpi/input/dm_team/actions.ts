@@ -35,7 +35,15 @@ export async function deleteDmTeamMember(form:FormData) {
   if (!(await verifyAdminScope("dm"))) redirect("/admin/kpi");
   const id=Number(read(form,"id",16));
   if(!Number.isSafeInteger(id)||id<1)redirect(`${path}?error=invalid`);
-  await getDb().execute("DELETE FROM dm_team_members WHERE id=?",[id]);
+  const db=getDb();
+  try{await db.transaction(async tx=>{
+    const [members]=await tx.execute<(RowDataPacket&{full_name:string})[]>("SELECT full_name FROM dm_team_members WHERE id=? FOR UPDATE",[id]);
+    if(!members.length)throw new Error("DM_MEMBER_MISSING");
+    await tx.execute("DELETE FROM team_activity_entries WHERE entry_type='dm_client' AND (dm_team_member_id=? OR (dm_team_member_id IS NULL AND dm_person=?))",[id,members[0].full_name]);
+    await tx.execute("DELETE FROM dm_content_targets WHERE dm_team_member_id=?",[id]);
+    await tx.execute("DELETE FROM dm_client_assignments WHERE dm_team_member_id=?",[id]);
+    await tx.execute("DELETE FROM dm_team_members WHERE id=?",[id]);
+  })}catch(error){if(error instanceof Error&&error.message==="DM_MEMBER_MISSING")redirect(`${path}?error=missing`);redirect(`${path}?error=dependencies`)}
   revalidatePath(path); revalidatePath("/admin/kpi/input/dm_client"); revalidatePath("/admin/kpi"); revalidatePath("/admin"); revalidatePath("/performa/dm");
-  redirect(`${path}?deleted=1`);
+  redirect(`${path}?deleted=1&cascade=1`);
 }

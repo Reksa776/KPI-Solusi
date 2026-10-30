@@ -50,9 +50,12 @@ export async function deleteDmClientAssignment(form:FormData) {
   if(!(await verifyAdminScope("dm")))redirect("/admin/kpi");
   const dmId=number(form,"dm_team_member_id"),clientId=number(form,"agency_client_id");
   if(!Number.isSafeInteger(dmId)||dmId<1||!Number.isSafeInteger(clientId)||clientId<1)redirect(`${path}?error=invalid`);
-  const [history]=await getDb().execute<(RowDataPacket&{total:bigint|number})[]>("SELECT COUNT(*) AS total FROM team_activity_entries WHERE entry_type='dm_client' AND dm_team_member_id=? AND agency_client_id=?",[dmId,clientId]);
-  if(Number(history[0]?.total??0)>0)redirect(`${path}?dm_id=${dmId}&client_id=${clientId}&error=inuse`);
-  await getDb().execute("DELETE FROM dm_client_assignments WHERE dm_team_member_id=? AND agency_client_id=?",[dmId,clientId]);
+  try{await getDb().transaction(async tx=>{
+    await tx.execute("DELETE FROM team_activity_entries WHERE entry_type='dm_client' AND dm_team_member_id=? AND agency_client_id=?",[dmId,clientId]);
+    await tx.execute("DELETE FROM dm_content_targets WHERE dm_team_member_id=? AND agency_client_id=?",[dmId,clientId]);
+    await tx.execute("DELETE FROM dm_client_assignments WHERE dm_team_member_id=? AND agency_client_id=?",[dmId,clientId]);
+  })}catch{redirect(`${path}?dm_id=${dmId}&client_id=${clientId}&error=dependencies`)}
   revalidatePath(path); revalidatePath("/admin/kpi"); revalidatePath("/admin");
-  redirect(`${path}?deleted=1`);
+  revalidatePath("/admin/kpi/input/dm_targets");revalidatePath("/performa/dm");
+  redirect(`${path}?deleted=1&cascade=1`);
 }

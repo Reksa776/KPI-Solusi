@@ -7,7 +7,7 @@ import DmKpiOverview, { type DmClientPerformanceRow, type DmContentTargetRow, ty
 
 export const metadata:Metadata={title:"Overview DM | Solusi Sejalan",description:"Ringkasan performa bulanan tim Digital Marketing."};
 type Query={month?:string;weeklyMonth?:string;dm?:string};
-type Entry=RowDataPacket&{dm_id:number|null;dm_name:string|null;client_name:string|null;client_type:string|null;activity_date:string|Date;contents:number|string;video_views:number|string;tiktok_sales:number|string;shopee_sales:number|string};
+type Entry=RowDataPacket&{dm_id:number|null;dm_name:string|null;client_name:string|null;client_type:string|null;activity_date:string|Date;input_frequency:string;contents:number|string;video_views:number|string;tiktok_sales:number|string;shopee_sales:number|string};
 type Assignment=RowDataPacket&{dm_id:number;dm_name:string;client_name:string;client_type:string;client_id:number};
 type ContentTarget=RowDataPacket&{dm_team_member_id:number;agency_client_id:number;dm_name:string;client_name:string;week_start:string|Date;target_contents:number|string};
 type DmActual=RowDataPacket&{dm_team_member_id:number;agency_client_id:number;week_start:string|Date;contents:number|string};
@@ -16,7 +16,7 @@ const validMonth=(value?:string)=>/^\d{4}-(0[1-9]|1[0-2])$/.test(value??"");
 const dateValue=(value:string|Date)=>typeof value==="string"?value.slice(0,10):new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(value);
 const clientTypeLabels:Record<string,string>={existing:"Client Existing",prospect:"Calon Client",ex_client:"Ex Client",community:"Community",media:"Media",institution:"Instansi",agency_ph:"Agency / PH",etc:"Etc."};
 const blank=():Metric=>({contents:0,videoViews:0,tiktokSales:0,shopeeSales:0});
-const dbQuery="SELECT m.id AS dm_id,m.full_name AS dm_name,e.client_name,e.client_type,e.activity_date,e.contents,e.video_views,e.tiktok_sales,e.shopee_sales FROM team_activity_entries e JOIN dm_team_members m ON m.id=e.dm_team_member_id WHERE e.scope='dm' AND e.entry_type='dm_client' AND e.activity_date>=? AND e.activity_date<DATE_ADD(?,INTERVAL 1 MONTH) ORDER BY e.activity_date,e.id";
+const dbQuery="SELECT m.id AS dm_id,m.full_name AS dm_name,e.client_name,e.client_type,e.activity_date,e.input_frequency,e.contents,e.video_views,e.tiktok_sales,e.shopee_sales FROM team_activity_entries e JOIN dm_team_members m ON m.id=e.dm_team_member_id WHERE e.scope='dm' AND e.entry_type='dm_client' AND e.activity_date>=? AND e.activity_date<DATE_ADD(?,INTERVAL 1 MONTH) ORDER BY e.activity_date,e.id";
 
 export default async function PublicDmPerformancePage({searchParams}:{searchParams:Promise<Query>}){
   const query=await searchParams,currentMonth=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit"}).format(new Date()),month=validMonth(query.month)?query.month!:currentMonth,weeklyMonth=validMonth(query.weeklyMonth)?query.weeklyMonth!:month;
@@ -31,8 +31,8 @@ export default async function PublicDmPerformancePage({searchParams}:{searchPara
   for(const row of rows)row.score=50*row.contents/max.contents+30*row.videoViews/max.views+20*(row.tiktokSales+row.shopeeSales)/max.sales;
   rows.sort((a,b)=>b.score-a.score||b.videoViews-a.videoViews||a.name.localeCompare(b.name,"id"));
   const selectedDm=rows.some(x=>x.name===query.dm)?query.dm:undefined,trendMap=new Map<string,DmTrendPoint>();
-  const point=(day:string,dm:string)=>{const key=`${day}\0${dm}`;let row=trendMap.get(key);if(!row){row={week:day,dm,contents:0,videoViews:0,sales:0};trendMap.set(key,row)}return row};
-  for(const e of entries){const day=dateValue(e.activity_date);if(!periodFor(day,month,periods))continue;const name=e.dm_name??"Belum ditentukan";for(const row of [point(day,name),point(day,"__all__")]){row.contents+=Number(e.contents);row.videoViews+=Number(e.video_views);row.sales+=Number(e.tiktok_sales)+Number(e.shopee_sales)}}
+  const point=(day:string,dm:string,frequency:"daily"|"weekly")=>{const key=`${day}\0${dm}`;let row=trendMap.get(key);if(!row){row={week:day,dm,contents:0,videoViews:0,sales:0,frequency};trendMap.set(key,row)}else if(row.frequency!==frequency)row.frequency="mixed";return row};
+  for(const e of entries){const day=dateValue(e.activity_date);if(!periodFor(day,month,periods))continue;const name=e.dm_name??"Belum ditentukan",frequency=e.input_frequency==="weekly"?"weekly":"daily";for(const row of [point(day,name,frequency),point(day,"__all__",frequency)]){row.contents+=Number(e.contents);row.videoViews+=Number(e.video_views);row.sales+=Number(e.tiktok_sales)+Number(e.shopee_sales)}}
   const performance=new Map<string,DmClientPerformanceRow>(),weeklyByDm=new Map<string,Record<string,Metric>>();
   for(const a of assignments){if(query.dm&&a.dm_name!==query.dm)continue;const type=clientTypeLabels[a.client_type]??a.client_type,key=`${a.dm_name}\0${a.client_name}\0${type}`;if(!performance.has(key))performance.set(key,{dm:a.dm_name,name:a.client_name,type,contents:0,videoViews:0,tiktokSales:0,shopeeSales:0,weeks:{}})}
   for(const e of entries){const dm=e.dm_name??"Belum ditentukan";if(selectedDm&&dm!==selectedDm)continue;

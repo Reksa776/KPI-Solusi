@@ -78,8 +78,12 @@ export async function deleteAgencyClient(form: FormData) {
   if (!(await verifyAdminAnyScope(["dm", "dae"]))) redirect("/admin/login");
   const id = Number(read(form, "id", 20));
   if (!Number.isSafeInteger(id) || id < 1) redirect("/admin/client?error=invalid");
-  await getDb().execute("DELETE FROM agency_clients WHERE id=?", [id]);
+  try{await getDb().transaction(async tx=>{
+    await tx.execute("DELETE FROM team_activity_entries WHERE entry_type='dm_client' AND agency_client_id=?",[id]);
+    await tx.execute("DELETE FROM agency_clients WHERE id=?",[id]);
+  })}catch{redirect("/admin/client?error=dependencies")}
   revalidatePath("/admin/client");
+  revalidatePath("/admin/kpi/input/dm_client");revalidatePath("/admin/kpi/input/dm_targets");revalidatePath("/admin/kpi");revalidatePath("/performa/dm");revalidatePath("/performa/client");revalidatePath("/performa/dae");
   revalidatePath("/admin");
   redirect("/admin/client?deleted=1");
 }

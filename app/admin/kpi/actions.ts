@@ -94,6 +94,7 @@ export async function saveTeamEntry(form: FormData) {
   revalidatePath("/admin/kpi");
   revalidatePath("/admin");
   revalidatePath(`/admin/kpi/input/${type}`);
+  if(type==="dm_client"){revalidatePath("/performa/dm");revalidatePath("/admin/kpi/input/dm_targets")}
   if (type === "dm_client" && dmMemberId && selectedAgencyClientId) redirect(`/admin/kpi/input/dm_client?dm_id=${dmMemberId}&client_id=${selectedAgencyClientId}&saved=1`);
   redirect(`/admin/kpi/input/${type}?saved=1`);
 }
@@ -221,6 +222,7 @@ export async function deleteTeamEntry(form: FormData) {
   revalidatePath("/admin/kpi");
   revalidatePath("/admin");
   revalidatePath(`/admin/kpi/input/${type}`);
+  if(type==="dm_client"){revalidatePath("/performa/dm");revalidatePath("/admin/kpi/input/dm_targets")}
   if (type === "dm_client" && Number.isSafeInteger(returnDmId) && returnDmId > 0 && Number.isSafeInteger(returnClientId) && returnClientId > 0) redirect(`/admin/kpi/input/dm_client?dm_id=${returnDmId}&client_id=${returnClientId}&deleted=1`);
   redirect(`/admin/kpi/input/${type}?deleted=1`);
 }
