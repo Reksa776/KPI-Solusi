@@ -873,10 +873,12 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dae-chart-wrap{position:relative;height:205px}
 .dae-chart-wrap svg{display:block;width:100%;height:100%;overflow:visible}
 .dm-chart-hover-tooltip{position:absolute;z-index:2;top:8px;display:grid;min-width:165px;gap:5px;padding:9px 11px;transform:translateX(-50%);border:1px solid #414a25;border-radius:8px;background:#111410eF;color:#e7e9e1;box-shadow:0 8px 24px #0008;font-size:10px;pointer-events:none}
+.dm-chart-hover-tooltip{min-width:260px;max-width:min(340px,calc(100vw - 48px))}
 .dm-chart-hover-tooltip>b{padding-bottom:3px;border-bottom:1px solid #34392f;color:#f2f4eb;font-size:11px}
 .dm-chart-hover-tooltip>span{display:grid;grid-template-columns:7px auto 1fr;align-items:center;gap:6px;color:#aeb3a6}
 .dm-chart-hover-tooltip i{width:7px;height:7px;border-radius:50%}
 .dm-chart-hover-tooltip strong{justify-self:end;color:#f0f2eb;font-variant-numeric:tabular-nums}
+.dm-chart-hover-tooltip strong{white-space:normal;text-align:right}
 .dae-chart-legend{display:flex;flex-wrap:wrap;gap:14px;padding:4px 3px 0;color:#aeb3a6;font-size:9px}
 .dae-chart-legend span{display:flex;align-items:center;gap:6px}
 .dae-chart-legend i,.dae-donut-layout li>i{width:7px;height:7px;border-radius:3px}
