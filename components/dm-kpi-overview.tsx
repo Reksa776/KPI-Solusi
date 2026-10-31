@@ -23,8 +23,8 @@ export default function DmKpiOverview({ month, weeklyMonth, rows, trends, select
   const byWeek=new Map<string,Map<string,WeekMetric>>();
   for(const point of trends){
     if(point.dm==="__all__")continue;
-    const week=[...availableWeeks].reverse().find(period=>period<=point.week);
-    if(!week)continue;
+    const week=point.week;
+    if(!availableWeeks.includes(week))continue;
     const team=byWeek.get(week)??new Map<string,WeekMetric>(),metric=team.get(point.dm)??{contents:0,videoViews:0,sales:0};
     metric.contents+=point.contents;metric.videoViews+=point.videoViews;metric.sales+=point.sales;team.set(point.dm,metric);byWeek.set(week,team);
   }
