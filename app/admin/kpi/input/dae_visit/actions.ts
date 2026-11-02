@@ -19,12 +19,14 @@ export async function saveDaeVisits(form: FormData) {
   if (!(await verifyAdminAnyScope(["dm", "dae"]))) redirect("/admin/kpi");
   const person = String(form.get("dae_person") ?? "").trim().slice(0, 160);
   const weekStart=String(form.get("week_start")??"").trim();
+  const periodMonth=String(form.get("period_month")??"").trim();
   const replacePerson = String(form.get("replace_dae_person") ?? "").trim().slice(0, 160);
   const replaceWeekStart=String(form.get("replace_week_start")??"").trim();
   const rawClientIds = form.getAll("agency_client_ids").map(value => Number(String(value)));
   const visitCounts = form.getAll("visit_counts").map(value => Number(String(value)));
   const clientIds = [...new Set(rawClientIds)];
-  const weekValid=/^\d{4}-\d{2}-\d{2}$/.test(weekStart)&&!Number.isNaN(Date.parse(`${weekStart}T00:00:00Z`))&&Boolean(monthWeekFromStart(weekStart));
+  const parsedWeek=monthWeekFromStart(weekStart);
+  const weekValid=/^\d{4}-\d{2}-\d{2}$/.test(weekStart)&&!Number.isNaN(Date.parse(`${weekStart}T00:00:00Z`))&&Boolean(parsedWeek&&parsedWeek.month===periodMonth);
   if (!person || !weekValid || !monthWeekFromStart(weekStart) || !clientIds.length || clientIds.length > 100 || rawClientIds.length !== visitCounts.length || clientIds.length !== rawClientIds.length || visitCounts.some(count => !Number.isSafeInteger(count) || count < 1 || count > 1000)) redirect(`${path}?${replacePerson ? `edit=${encodeURIComponent(replacePerson)}&week=${encodeURIComponent(replaceWeekStart)}` : "new=1"}&error=invalid`);
   const db = getDb();
   const [assignments] = await db.execute<(RowDataPacket & { agency_client_ids: unknown })[]>("SELECT agency_client_ids FROM team_activity_entries WHERE entry_type='dae_team' AND dae_person=? ORDER BY updated_at DESC,id DESC LIMIT 1", [person]);

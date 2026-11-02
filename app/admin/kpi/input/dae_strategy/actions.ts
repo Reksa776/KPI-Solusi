@@ -13,11 +13,13 @@ export async function saveDaeStrategies(form: FormData) {
   if (!(await verifyAdminAnyScope(["dm", "dae"]))) redirect("/admin/kpi");
   const daePerson = String(form.get("dae_person") ?? "").trim().slice(0, 160);
   const weekStart = String(form.get("week_start") ?? "").trim();
+  const periodMonth = String(form.get("period_month") ?? "").trim();
   const replaceDaePerson = String(form.get("replace_dae_person") ?? "").trim().slice(0, 160);
   const replaceWeekStart = String(form.get("replace_week_start") ?? "").trim();
   const strategyTexts = form.getAll("strategy_text").map(value => String(value).trim().slice(0, 500));
   const clientIds = form.getAll("strategy_client_id").map(value => Number(String(value)));
-  const validWeek = Boolean(monthWeekFromStart(weekStart));
+  const parsedWeek = monthWeekFromStart(weekStart);
+  const validWeek = Boolean(parsedWeek && parsedWeek.month === periodMonth);
   if (!daePerson || !validWeek || !strategyTexts.length || strategyTexts.length !== clientIds.length || strategyTexts.length > 50 || strategyTexts.some(text => !text) || clientIds.some(id => !Number.isSafeInteger(id) || id < 1)) redirect(`${path}?${replaceDaePerson ? `edit=${encodeURIComponent(replaceDaePerson)}&week=${encodeURIComponent(replaceWeekStart)}` : "new=1"}&error=invalid`);
   const db = getDb();
   const [people] = await db.execute<(RowDataPacket & { agency_client_ids: unknown })[]>("SELECT agency_client_ids FROM team_activity_entries WHERE entry_type='dae_team' AND dae_person=? ORDER BY updated_at DESC,id DESC LIMIT 1", [daePerson]);
