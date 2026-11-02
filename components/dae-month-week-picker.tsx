@@ -26,7 +26,7 @@ export default function DaeMonthWeekPicker({ name = "week_start", initialWeekSta
     onChange?.(next?.value ?? "");
   }
   return <div className="form-grid dae-month-week-picker">
-    <label>Bulan {months ? <select value={months.includes(month) ? month : months[0]} onChange={event => changeMonth(event.target.value)}>{months.map(value => <option key={value} value={value}>{new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}-01T12:00:00Z`))}</option>)}</select> : <input type="month" value={month} onChange={event => changeMonth(event.target.value)} required />}</label>
+    <label>Bulan laporan {months ? <select value={months.includes(month) ? month : months[0]} onChange={event => changeMonth(event.target.value)}>{months.map(value => <option key={value} value={value}>{new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}-01T12:00:00Z`))}</option>)}</select> : <input type="month" value={month} onChange={event => changeMonth(event.target.value)} required />}</label>
     <label>Minggu ke<select value={week} onChange={event => changeWeek(event.target.value)} required><option value="" disabled>Pilih minggu</option>{choices.map(item => <option key={item.number} value={item.number} disabled={item.disabled}>{item.label}{item.disabled ? " · Tidak ada periode dalam bulan ini" : ""}</option>)}</select></label>
     <input type="hidden" name={name} value={selected?.value ?? ""}/>
   </div>;
