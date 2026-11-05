@@ -6,7 +6,7 @@ export type DaeMixSlice = { label: string; count: number; color: string };
 
 const number = (value: number) => value.toLocaleString("id-ID");
 
-export default function DaeClientMixChart({ slices }: { slices: DaeMixSlice[] }) {
+export default function DaeClientMixChart({ slices, unitLabel = "client", emptyMessage = "Belum ada komposisi client." }: { slices: DaeMixSlice[]; unitLabel?: string; emptyMessage?: string }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [pointer, setPointer] = useState<{ x: number; y: number } | null>(null);
   const total = slices.reduce((sum, slice) => sum + slice.count, 0);
@@ -41,10 +41,10 @@ export default function DaeClientMixChart({ slices }: { slices: DaeMixSlice[] })
   return <div className="dae-donut-layout">
     <div className="dae-donut-stage">
       <button type="button" className="dae-donut" style={{ background: gradient }} aria-label="Arahkan kursor ke irisan untuk melihat jenis client, persentase, dan jumlahnya" onPointerMove={selectFromPointer} onPointerLeave={() => { setHoveredIndex(null); setPointer(null); }}>
-        <span className="dae-donut-center">{active ? <><b title={active.label}>{active.label}</b><strong>{total ? `${(active.count / total * 100).toFixed(1)}%` : "0%"}</strong><small>{number(active.count)} client</small></> : <><b>{number(total)}</b><small>Total client</small></>}</span>
+        <span className="dae-donut-center">{active ? <><b title={active.label}>{active.label}</b><strong>{total ? `${(active.count / total * 100).toFixed(1)}%` : "0%"}</strong><small>{number(active.count)} {unitLabel}</small></> : <><b>{number(total)}</b><small>Total {unitLabel}</small></>}</span>
       </button>
-      {active && pointer && <span className="dae-donut-tooltip" style={{ left: pointer.x, top: pointer.y }}><b>{active.label}</b><strong>{total ? `${(active.count / total * 100).toFixed(1)}%` : "0%"}</strong><small>{number(active.count)} client</small></span>}
+      {active && pointer && <span className="dae-donut-tooltip" style={{ left: pointer.x, top: pointer.y }}><b>{active.label}</b><strong>{total ? `${(active.count / total * 100).toFixed(1)}%` : "0%"}</strong><small>{number(active.count)} {unitLabel}</small></span>}
     </div>
-    <ul>{slices.slice(0, 5).map((slice, index) => <li key={slice.label} onPointerEnter={() => setHoveredIndex(index)} onPointerLeave={() => setHoveredIndex(null)}><i style={{ background: slice.color }}/><span>{slice.label}</span><b>{slice.count}<small>{total ? `${(slice.count / total * 100).toFixed(1)}%` : "0%"}</small></b></li>)}{!slices.length && <li className="dae-empty">Belum ada komposisi client.</li>}</ul>
+    <ul>{slices.slice(0, 5).map((slice, index) => <li key={slice.label} onPointerEnter={() => setHoveredIndex(index)} onPointerLeave={() => setHoveredIndex(null)}><i style={{ background: slice.color }}/><span>{slice.label}</span><b>{slice.count}<small>{total ? `${(slice.count / total * 100).toFixed(1)}%` : "0%"}</small></b></li>)}{!slices.length && <li className="dae-empty">{emptyMessage}</li>}</ul>
   </div>;
 }
