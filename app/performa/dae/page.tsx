@@ -13,6 +13,7 @@ type Query={week?:string;dae?:string};
 type Client=RowDataPacket&{id:number;client_name:string;client_type:string};
 type Assignment=RowDataPacket&{dae_person:string;week_start:string|Date;agency_client_ids:unknown};
 type WeeklyCount=RowDataPacket&{dae_person?:string;week_start:string|Date;total:number};
+type MonthlyVisitType=RowDataPacket&{dae_person:string;client_type:string;total:number|string};
 type DaeReport=RowDataPacket&{dae_person:string;week_start:string|Date;team_coordination:string|null;daily_report:string|null};
 const clientTypeLabels:Record<string,string>={existing:"Client Existing",prospect:"Calon Client",ex_client:"Ex Client",community:"Community",media:"Media",institution:"Instansi",agency_ph:"Agency / PH",etc:"Etc."};
 const dateValue=(value:string|Date)=>typeof value==="string"?value.slice(0,10):new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(value);
@@ -33,15 +34,16 @@ export default async function PublicDaePerformancePage({searchParams}:{searchPar
     const activeWeek=query.week&&requestedPeriods.includes(query.week)?query.week:monthWeekStartForDate(currentDate)??requestedPeriods[0]??"";
     const periodWeeks=Array.from({length:5},(_,index)=>getMonthWeekStart(activeWeek.slice(0,7),index+1)??"");
     const reportWeeks=periodWeeks.filter(Boolean);
-    const trendPeriods=[...weeks].sort().filter(period=>period<=activeWeek).slice(-8);
+    const trendPeriods=reportWeeks;
     const reportQuery=reportWeeks.length?db.execute<DaeReport[]>(`SELECT dae_person,week_start,team_coordination,daily_report FROM dae_weekly_reports WHERE week_start IN (${reportWeeks.map(()=>"?").join(",")})`,reportWeeks):Promise.resolve([[] as DaeReport[],[]] as const);
-    const [[assignmentRows],[strategyWeekRows],[visitWeekRows],[trendAssignments],[trendStrategies],[trendVisits],[weeklyReports]] = await Promise.all([
+    const [[assignmentRows],[strategyWeekRows],[visitWeekRows],[trendAssignments],[trendStrategies],[trendVisits],[monthlyVisitTypes],[weeklyReports]] = await Promise.all([
       db.execute<Assignment[]>("SELECT e.dae_person,e.week_start,e.agency_client_ids FROM team_activity_entries e WHERE e.entry_type='dae_team' AND e.dae_person IS NOT NULL AND TRIM(e.dae_person)<>'' AND e.id=(SELECT latest.id FROM team_activity_entries latest WHERE latest.entry_type='dae_team' AND latest.dae_person=e.dae_person ORDER BY latest.updated_at DESC,latest.id DESC LIMIT 1) ORDER BY e.dae_person"),
       activeWeek?db.execute<WeeklyCount[]>("SELECT dae_person,week_start,COUNT(*) AS total FROM dae_strategy_details WHERE week_start>=? AND week_start<=? GROUP BY dae_person,week_start",[`${activeWeek.slice(0,7)}-01`,activeWeek]):Promise.resolve([[] as WeeklyCount[],[]] as const),
       activeWeek?db.execute<WeeklyCount[]>("SELECT dae_person,week_start,SUM(visit_count) AS total FROM dae_visit_details WHERE week_start=? GROUP BY dae_person,week_start",[activeWeek]):Promise.resolve([[] as WeeklyCount[],[]] as const),
       db.execute<Assignment[]>("SELECT e.dae_person,e.week_start,e.agency_client_ids FROM team_activity_entries e WHERE e.entry_type='dae_team' AND e.dae_person IS NOT NULL AND TRIM(e.dae_person)<>'' AND e.id=(SELECT latest.id FROM team_activity_entries latest WHERE latest.entry_type='dae_team' AND latest.dae_person=e.dae_person ORDER BY latest.updated_at DESC,latest.id DESC LIMIT 1) ORDER BY e.dae_person LIMIT 5000"),
       db.execute<WeeklyCount[]>("SELECT dae_person,week_start,COUNT(*) AS total FROM dae_strategy_details GROUP BY dae_person,week_start ORDER BY week_start DESC LIMIT 5000"),
       db.execute<WeeklyCount[]>("SELECT dae_person,week_start,SUM(visit_count) AS total FROM dae_visit_details GROUP BY dae_person,week_start ORDER BY week_start DESC LIMIT 1000"),
+      activeWeek?db.execute<MonthlyVisitType[]>("SELECT v.dae_person,c.client_type,SUM(v.visit_count) AS total FROM dae_visit_details v JOIN agency_clients c ON c.id=v.agency_client_id WHERE v.week_start>=? AND v.week_start<=? GROUP BY v.dae_person,c.client_type",[`${activeWeek.slice(0,7)}-01`,activeWeek]):Promise.resolve([[] as MonthlyVisitType[],[]] as const),
       reportQuery
     ]);
     const clientMap=new Map(clientRows.map(client=>[Number(client.id),client]));
@@ -85,8 +87,7 @@ export default async function PublicDaePerformancePage({searchParams}:{searchPar
     const palette=["#d2fb07","#8dbf45","#4ca88b","#c2d976","#7d876c","#d2aa58"];
     const slices:DaeTypeSlice[]=[...sliceMap].map(([label,count],index)=>({label,count,color:palette[index%palette.length]})).sort((a,b)=>b.count-a.count);
     const monthlyVisitTotals=new Map<string,number>();
-    if(selectedDae){for(const [index,period] of reportWeeks.entries()){const total=trendVisits.filter(item=>item.dae_person===selectedDae&&dateValue(item.week_start)===period).reduce((sum,item)=>sum+Number(item.total),0);if(total)monthlyVisitTotals.set(`Minggu ${index+1}`,total)}}
-    else for(const item of trendVisits){const period=dateValue(item.week_start);if(period.slice(0,7)!==activeWeek.slice(0,7)||!item.dae_person)continue;monthlyVisitTotals.set(item.dae_person,(monthlyVisitTotals.get(item.dae_person)??0)+Number(item.total))}
+    for(const item of monthlyVisitTypes){if(selectedDae&&item.dae_person!==selectedDae)continue;const label=item.client_type==="community"?"Komunitas":item.client_type==="prospect"?"Calon Klien":clientTypeLabels[item.client_type]??item.client_type;monthlyVisitTotals.set(label,(monthlyVisitTotals.get(label)??0)+Number(item.total))}
     const visitSlices:DaeTypeSlice[]=[...monthlyVisitTotals].map(([label,count],index)=>({label,count,color:palette[index%palette.length]})).sort((a,b)=>b.count-a.count);
     const dateSets=new Map<string,Map<string,Set<number>>>();
     for(const week of trendPeriods)for(const assignment of trendAssignments){const people=dateSets.get(week)??new Map<string,Set<number>>(),ids=people.get(assignment.dae_person)??new Set<number>();readIds(assignment.agency_client_ids).filter(id=>existingClientIds.has(id)).forEach(id=>ids.add(id));people.set(assignment.dae_person,ids);dateSets.set(week,people)}
