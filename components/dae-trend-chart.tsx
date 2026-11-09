@@ -26,16 +26,16 @@ export default function DaeTrendChart({ trend }: { trend: DaeChartPoint[] }) {
         <path d={linePath(trend.map(point => point.clients), width, height, max)} fill="none" stroke="#d2fb07" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
         <path d={linePath(trend.map(point => point.strategies), width, height, max)} fill="none" stroke="#80b948" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
         <path d={linePath(trend.map(point => point.visits), width, height, max)} fill="none" stroke="#46a68a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-        {trend.map((point, index) => <g key={point.week} className="dae-chart-point" role="button" tabIndex={0} aria-label={`${weekLabel(point.week)}: ${number(point.clients)} client dipegang, ${number(point.strategies)} total strategi bulanan, ${number(point.visits)} kunjungan`} aria-pressed={hoveredIndex === index} onPointerEnter={() => setHoveredIndex(index)} onFocus={() => setHoveredIndex(index)} onBlur={() => setHoveredIndex(null)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setHoveredIndex(index); } }}>
+        {trend.map((point, index) => <g key={point.week} className="dae-chart-point" role="button" tabIndex={0} aria-label={`Minggu ${index + 1} · ${weekLabel(point.week)}: ${number(point.clients)} client dipegang, ${number(point.strategies)} total strategi bulanan, ${number(point.visits)} kunjungan`} aria-pressed={hoveredIndex === index} onPointerEnter={() => setHoveredIndex(index)} onFocus={() => setHoveredIndex(index)} onBlur={() => setHoveredIndex(null)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setHoveredIndex(index); } }}>
           <rect x={xAt(index) - 12} y="0" width="24" height={height} fill="transparent"/>
           <circle cx={xAt(index)} cy={yAt(point.clients)} r={hoveredIndex === index ? 6 : 4} fill="#d2fb07"/>
           <circle cx={xAt(index)} cy={yAt(point.strategies)} r={hoveredIndex === index ? 6 : 4} fill="#80b948"/>
           <circle cx={xAt(index)} cy={yAt(point.visits)} r={hoveredIndex === index ? 6 : 4} fill="#46a68a"/>
-          <text x={xAt(index)} y={height - 3} textAnchor="middle" fill="#82897c" fontSize="9">{weekLabel(point.week)}</text>
+          <text x={xAt(index)} y={height - 3} textAnchor="middle" fill="#82897c" fontSize="9">Minggu {index + 1}</text>
         </g>)}
       </svg>
       {active && <div className="dae-chart-hover-tooltip" style={{ left: `${Math.max(13, Math.min(87, xAt(hoveredIndex!) / width * 100))}%` }}>
-        <b>{weekLabel(active.week)}</b>
+        <b>Minggu {hoveredIndex! + 1} · {weekLabel(active.week)}</b>
         <span><i className="client"/>Client Existing <strong>{number(active.clients)}</strong></span>
         <span><i className="strategy"/>Strategi bulanan <strong>{number(active.strategies)}</strong></span>
         <span><i className="visit"/>Kunjungan <strong>{number(active.visits)}</strong></span>
