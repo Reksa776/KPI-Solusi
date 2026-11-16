@@ -1797,3 +1797,35 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dm-range-controls>label>input{min-width:145px}
 .dm-range-controls>button{height:38px;padding:0 13px;border:0;border-radius:8px;background:#d2fb07;color:#1b2112;font-weight:700}
 @media(max-width:620px){.dm-range-controls{align-items:stretch}.dm-range-controls>select,.dm-range-controls>label,.dm-range-controls>label>input,.dm-range-controls>button{width:100%}}
+
+.dm-date-range-picker{position:relative;z-index:12;min-width:265px}
+.dm-date-range-trigger{display:flex;width:100%;height:40px;align-items:center;justify-content:space-between;gap:12px;padding:0 12px;border:1px solid #34392f;border-radius:8px;background:#171a16;color:#edf0e7;font:550 13px 'DM Sans',sans-serif;cursor:pointer}
+.dm-date-range-trigger i{padding:0 5px;color:#818879;font-style:normal}
+.dm-date-range-trigger b{color:#aeb3a6;font-size:12px}
+.dm-range-controls{align-items:center}
+.dm-range-submit{height:40px!important;white-space:nowrap}
+.dm-date-range-popover{position:absolute;top:calc(100% + 8px);left:0;display:grid;grid-template-columns:132px minmax(570px,1fr);width:min(790px,calc(100vw - 48px));overflow:hidden;border:1px solid #3a4035;border-radius:10px;background:#171a16;color:#e7e9e1;box-shadow:0 18px 48px #0009}
+.dm-date-range-presets{display:flex;flex-direction:column;gap:5px;padding:12px;border-right:1px solid #30352c;background:#141711}
+.dm-date-range-presets button{min-height:32px;padding:5px 8px;border:1px solid transparent;border-radius:6px;background:transparent;color:#c6cabe;text-align:left;font:500 11px 'DM Sans',sans-serif;cursor:pointer}
+.dm-date-range-presets button:hover{border-color:#38432a;background:#202519;color:#d2fb07}
+.dm-date-range-calendar{min-width:0;padding:12px}
+.dm-date-range-calendar>header{display:grid;grid-template-columns:30px 1fr 1fr 30px;align-items:center;gap:5px;margin-bottom:9px;text-align:center}
+.dm-date-range-calendar>header strong{font-size:12px;font-weight:650}
+.dm-date-range-calendar>header button{width:28px;height:28px;border:0;border-radius:5px;background:transparent;color:#aeb3a6;font-size:21px;cursor:pointer}
+.dm-date-range-calendar>header button:hover{background:#292e25;color:#d2fb07}
+.dm-date-range-months{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.dm-date-range-weekdays,.dm-date-range-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));text-align:center}
+.dm-date-range-weekdays{margin-bottom:4px;color:#8e9587;font-size:10px}
+.dm-date-range-days{row-gap:2px}
+.dm-date-range-days button{position:relative;z-index:0;display:grid;min-width:0;height:30px;place-items:center;border:0;border-radius:0;background:transparent;color:#e5e8df;font:500 11px 'DM Sans',sans-serif;cursor:pointer;touch-action:none}
+.dm-date-range-days button:hover:not(:disabled){border-radius:6px;background:#293326;color:#d2fb07}
+.dm-date-range-days button.outside{color:#666d61}
+.dm-date-range-days button:disabled{color:#484e45;cursor:not-allowed}
+.dm-date-range-days button.in-range{background:#26352d;color:#e7f4ec}
+.dm-date-range-days button.selected{z-index:1;border-radius:6px;background:#08a49b;color:white;font-weight:750}
+.dm-date-range-calendar>footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding-top:10px;border-top:1px solid #30352c;color:#c6cabe;font-size:11px}
+.dm-date-range-calendar>footer>div{display:flex;gap:7px}
+.dm-date-range-calendar>footer button{height:31px;padding:0 12px;border:1px solid #3b4235;border-radius:6px;background:#1c201a;color:#c6cabe;font-size:11px;cursor:pointer}
+.dm-date-range-calendar>footer button.dm-date-range-apply{border-color:#d2fb07;background:#d2fb07;color:#17200e;font-weight:700}
+@media(max-width:760px){.dm-date-range-popover{grid-template-columns:105px minmax(0,1fr);width:min(650px,calc(100vw - 34px))}.dm-date-range-months{grid-template-columns:minmax(0,1fr)}.dm-date-range-month:nth-child(2){display:none}.dm-date-range-calendar>header{grid-template-columns:28px 1fr 28px}.dm-date-range-calendar>header strong:nth-of-type(2){display:none}.dm-date-range-days button{height:34px}}
+@media(max-width:520px){.dm-date-range-popover{left:-4px;grid-template-columns:94px minmax(0,1fr);width:calc(100vw - 32px)}.dm-date-range-presets{padding:8px 6px}.dm-date-range-presets button{padding-inline:5px;font-size:10px}.dm-range-controls{align-items:stretch}.dm-date-range-picker{min-width:0;flex:1}.dm-range-submit{width:auto!important}}

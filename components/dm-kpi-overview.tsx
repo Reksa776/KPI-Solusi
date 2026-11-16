@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type PointerEvent } from "react";
 import Link from "next/link";
 import KpiExcelExport from "@/components/kpi-excel-export";
+import DmDateRangePicker from "@/components/dm-date-range-picker";
 
 export type DmOverviewRow = { id:number|null; name:string; clients:number; contents:number; videoViews:number; tiktokSales:number; shopeeSales:number; score:number };
 export type DmTrendPoint = { week:string; dm:string; contents:number; videoViews:number; sales:number; frequency?:"daily"|"weekly"|"mixed" };
@@ -123,7 +124,7 @@ export default function DmKpiOverview({ month, weeklyMonth, rangeMode="month", r
     return{week:index+1,value,grade};
   });
   return <div className="dae-overview-layout">
-    <section className={`dae-overview-toolbar${publicMode?"":" dm-target-toolbar"}`}><div className="dm-period-column"><form action={route} method="get" className="dm-range-filter">{!publicMode&&<input type="hidden" name="scope" value="dm"/>}<input type="hidden" name="month" value={month}/>{selectedDm&&<input type="hidden" name="dm" value={selectedDm}/>}<label htmlFor="dm-range-mode">Rentang data</label><div className="dm-range-controls"><select id="dm-range-mode" name="range" defaultValue={rangeMode}><option value="7d">7 hari terakhir</option><option value="month">Bulan ini</option><option value="custom">Pilih tanggal</option></select><label>Dari<input type="date" name="from" defaultValue={rangeFrom}/></label><label>Sampai<input type="date" name="to" defaultValue={rangeTo}/></label><button type="submit">Terapkan</button></div></form>
+    <section className={`dae-overview-toolbar${publicMode?"":" dm-target-toolbar"}`}><div className="dm-period-column"><form action={route} method="get" className="dm-range-filter">{!publicMode&&<input type="hidden" name="scope" value="dm"/>}<input type="hidden" name="month" value={month}/>{selectedDm&&<input type="hidden" name="dm" value={selectedDm}/>}<label>Rentang data</label><div className="dm-range-controls"><DmDateRangePicker mode={rangeMode} from={rangeFrom} to={rangeTo}/><button className="dm-range-submit" type="submit">Terapkan</button></div></form>
 </div>
     <div className="dm-toolbar-side"><article className="dae-best-card"><span className="dae-best-icon">✳</span><div><small>DM terbaik mingguan · {activeTrendWeekLabel}</small><strong>{weeklyBest?.name??"Belum ada perbandingan minggu"}</strong>{weeklyBest&&<small>Omset {percentLabel(weeklyBest.salesGrowth)} · Views {percentLabel(weeklyBest.viewsGrowth)} · Konten {percentLabel(weeklyBest.contentsGrowth)}</small>}</div>{weeklyBest&&<span className={`dae-grade ${(weeklyBest.salesGrowth??0)<0?"grade-buruk":"grade-a"}`}>{percentLabel(weeklyBest.salesGrowth)}<small>omset</small></span>}</article><article className="dae-best-card"><span className="dae-best-icon">✦</span><div><small>DM terbaik bulan ini · {monthName}</small><strong>{best?.name??"Belum ada grade mingguan"}</strong>{best&&<small>Berdasarkan {best.weeks} minggu · skor total {best.total}</small>}</div>{best&&<span className={`dae-grade ${best.grade.toLowerCase()==="buruk"?"grade-buruk":`grade-${best.grade.toLowerCase()}`}`}>{best.grade}<small>{best.total} poin</small></span>}</article>{!publicMode&&<div className="kpi-export-row"><KpiExcelExport scope="dm"/></div>}</div></section>
     <div className="dae-overview-grid">
