@@ -8,10 +8,10 @@ import { monthWeekFromStart, monthWeekStartForDate } from "@/lib/dae-weeks";
 
 type Metric="video_views"|"tiktok_sales"|"shopee_sales";
 type DailyRow={key:string;date:string;contents:string;video_views:string;tiktok_sales:string;shopee_sales:string};
-type ImportResult={date:string;value:number|null};
+type ImportResult={date:string;value:number|null;contents?:number};
 type Source={kind:"views"|"tiktok"|"shopee";title:string;description:string;metric:Metric};
 const sources:Source[]=[
-  {kind:"views",title:"Laporan Views TikTok",description:"Mengambil Video Views per tanggal dari sheet Overview (atau Total Viewers dari sheet Viewers).",metric:"video_views"},
+  {kind:"views",title:"Spreadsheet KPI DM",description:"Mencocokkan nama tab dengan nama DM, lalu mengambil Views dan Jumlah Upload per tanggal.",metric:"video_views"},
   {kind:"tiktok",title:"Laporan Omset TikTok",description:"GMV masuk pada tanggal analisis laporan.",metric:"tiktok_sales"},
   {kind:"shopee",title:"Laporan Omset Shopee",description:"Total Penjualan masuk pada tanggal laporan.",metric:"shopee_sales"},
 ];
@@ -28,20 +28,14 @@ export default function DmClientDailyReportsForm({dmId,clientId,dmName,clientNam
     setErrors(current=>({...current,[source.kind]:""}));
     try{
       let results:ImportResult[];
-      if(source.kind==="views"){
-        const payload=new FormData();payload.set("file",file);
-        const response=await fetch("/api/admin/kpi/import-viewers",{method:"POST",body:payload});
-        const data=await response.json() as {results?:ImportResult[];error?:string};
-        if(!response.ok)throw new Error(data.error??"Laporan Views tidak dapat dibaca.");
-        results=data.results??[];
-      }else results=await parseDatedReport(file,source.kind);
+      results=await parseDatedReport(file,source.kind,source.kind==="views"?dmName:undefined);
       if(!results.length)throw new Error("Tanggal dan angka tidak ditemukan pada file.");
       setRows(current=>{
         const next=[...current];
         for(const result of results){
           let index=next.findIndex(row=>row.date===result.date);
           if(index<0){next.push(blank(result.date));index=next.length-1;}
-          next[index]={...next[index],[source.metric]:result.value===null?"":String(result.value)};
+          next[index]={...next[index],[source.metric]:result.value===null?"":String(result.value),...(result.contents===undefined?{}:{contents:String(result.contents)})};
         }
         return next.sort((a,b)=>a.date.localeCompare(b.date));
       });
@@ -61,7 +55,7 @@ export default function DmClientDailyReportsForm({dmId,clientId,dmName,clientNam
     <section className="dm-report-import dm-daily-import"><h2>Impor laporan berdasarkan tanggal</h2><p>Setiap nilai tetap disimpan sebagai data harian. Di riwayat, pilih bulan dan minggu untuk melihat laporan yang termasuk periode tersebut. Omset otomatis masuk ke tanggal laporan.</p>
       {sources.map(source=>{const imported=imports[source.kind];return <div className="dm-daily-source" key={source.kind}>
         <label><b>{source.title}</b><small>{source.description}</small><input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={event=>void importFile(event,source)}/></label>
-        {imported&&<><span className="dm-report-filename">{imported.name} · {imported.results.length} tanggal terbaca</span><div className="dm-import-preview"><b>Tanggal</b><b>Nilai</b><b>Minggu</b>{imported.results.map((result,index)=><span key={`${result.date}-${index}`}><time>{new Date(`${result.date}T12:00:00Z`).toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"})}</time><strong>{result.value===null?"Tidak tersedia":result.value.toLocaleString("id-ID")}</strong><small>{weeklyLabel(result.date)}</small></span>)}</div></>}
+        {imported&&<><span className="dm-report-filename">{imported.name} · {imported.results.length} tanggal terbaca</span><div className="dm-import-preview"><b>Tanggal</b><b>Views / nilai</b><b>{source.kind==="views"?"Jumlah Upload":"Minggu"}</b>{imported.results.map((result,index)=><span key={`${result.date}-${index}`}><time>{new Date(`${result.date}T12:00:00Z`).toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"})}</time><strong>{result.value===null?"Tidak tersedia":result.value.toLocaleString("id-ID")}</strong><small>{source.kind==="views"?`${(result.contents??0).toLocaleString("id-ID")} konten · ${weeklyLabel(result.date)}`:weeklyLabel(result.date)}</small></span>)}</div></>}
         {errors[source.kind]&&<span className="dm-report-error">{errors[source.kind]}</span>}
       </div>;})}
     </section>

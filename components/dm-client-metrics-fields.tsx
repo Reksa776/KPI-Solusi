@@ -55,10 +55,43 @@ function reportFromWorkbook(fileName:string,sheets:Sheet[],kind:"views"|"tiktok"
   return{name:fileName,headers,rows,notice};
 }
 const reportDate = (value: string, fallbackYear = new Date().getFullYear()) => parseReportDate(value, fallbackYear);
-export async function parseDatedReport(file:File,kind:"views"|"tiktok"|"shopee"):Promise<{date:string;value:number}[]>{
+export async function parseDatedReport(file:File,kind:"views"|"tiktok"|"shopee",expectedSheetName?:string):Promise<{date:string;value:number;contents?:number}[]>{
   if(!file.name.toLowerCase().endsWith(".xlsx"))throw new Error("Input banyak tanggal memerlukan file Excel .xlsx.");
   const sheets=await parseXlsx(file),normalize=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
   if(kind==="views"){
+    const sheetKey=(value:string)=>normalize(value).replace(/[^a-z0-9]/g,"");
+    const isKpiLayout=(item:Sheet)=>{
+      for(let header=0;header<Math.min(item.rows.length,20);header++){
+        const window=item.rows.slice(Math.max(0,header-4),header+1).flat().map(normalize);
+        const headers=item.rows[header].map(normalize);
+        const dateColumn=headers.findIndex(value=>["tanggal","date"].includes(value));
+        const viewsColumn=headers.findIndex(value=>["views","view","tayangan"].includes(value));
+        const contentsColumn=headers.findIndex(value=>["jumlah upload","jumlah konten","konten"].includes(value));
+        if((dateColumn>=0||window.includes("tanggal")||window.includes("date"))&&viewsColumn>=0&&contentsColumn>=0)return {header,dateColumn,viewsColumn,contentsColumn};
+      }
+      return undefined;
+    };
+    const expected=expectedSheetName?sheets.find(item=>sheetKey(item.name)===sheetKey(expectedSheetName)):undefined;
+    if(expected){
+      const layout=isKpiLayout(expected);
+      if(!layout)throw new Error(`Tab “${expectedSheetName}” ditemukan, tetapi kolom Tanggal, Views, dan Jumlah Upload tidak lengkap.`);
+      const {header,viewsColumn,contentsColumn}=layout;
+      let dateColumn=layout.dateColumn;
+      if(dateColumn<0){
+        for(let index=header-1;index>=Math.max(0,header-4);index--){dateColumn=expected.rows[index].findIndex(value=>["tanggal","date"].includes(normalize(value)));if(dateColumn>=0)break;}
+      }
+      if(dateColumn<0)dateColumn=1;
+      const data=expected.rows.slice(header+1).flatMap(row=>{
+        const date=reportDate(row[dateColumn]??"");
+        const marker=(row[0]??"").trim();
+        if(!date||/^total\s+(week|minggu)/i.test(marker))return [];
+        return [{date,value:numeric(row[viewsColumn]??""),contents:numeric(row[contentsColumn]??"")}];
+      });
+      if(!data.length)throw new Error(`Tidak ada baris harian bertanggal yang bisa dibaca di tab “${expectedSheetName}”.`);
+      return data;
+    }
+    const kpiSheet=sheets.find(item=>isKpiLayout(item));
+    if(kpiSheet)throw new Error(`Tab untuk DM “${expectedSheetName??""}” tidak ditemukan. Tab tersedia: ${sheets.map(item=>item.name).join(", ")}.`);
     const hasViewHeaders=(rows:string[][])=>rows.some(row=>row.some(value=>normalize(value)==="date")&&row.some(value=>/^(video\s*views|total\s*viewers|viewers|views)$/i.test(normalize(value))));
     const sheet=sheets.find(item=>normalize(item.name)==="overview"&&hasViewHeaders(item.rows))??sheets.find(item=>normalize(item.name)==="viewers"&&hasViewHeaders(item.rows))??sheets.find(item=>hasViewHeaders(item.rows));
     if(!sheet)throw new Error("Sheet Overview atau Viewers tidak ditemukan.");

@@ -46,6 +46,20 @@ export async function saveDmClientAssignment(form:FormData) {
   redirect(`${path}?dm_id=${dmId}&client_id=${clientId}&saved=1`);
 }
 
+export async function saveDmSpreadsheetSource(form:FormData) {
+  if(!(await verifyAdminScope("dm")))redirect("/admin/kpi");
+  const url=String(form.get("spreadsheet_url")??"").trim().slice(0,1000);
+  let parsed:URL;
+  try{parsed=new URL(url)}catch{redirect(`/admin/kpi/input/dm_team?error=sheet_url`)}
+  if(parsed.protocol!=="https:"||parsed.hostname!=="docs.google.com"||!/^\/spreadsheets\/d\/[a-zA-Z0-9_-]+/.test(parsed.pathname))redirect(`/admin/kpi/input/dm_team?error=sheet_url`);
+  const db=getDb(),[members]=await db.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM dm_team_members ORDER BY id LIMIT 500");
+  if(!members.length)redirect(`/admin/kpi/input/dm_team?error=missing`);
+  await db.transaction(async tx=>{for(const member of members)await tx.execute("INSERT INTO dm_spreadsheet_sources (dm_team_member_id,spreadsheet_url) VALUES (?,?) ON DUPLICATE KEY UPDATE spreadsheet_url=VALUES(spreadsheet_url),last_synced_at=NULL,last_sync_status=NULL",[member.id,url])});
+  revalidatePath(path);revalidatePath("/performa/dm");
+  revalidatePath("/admin/kpi/input/dm_team");
+  redirect(`/admin/kpi/input/dm_team?saved=sheet`);
+}
+
 export async function deleteDmClientAssignment(form:FormData) {
   if(!(await verifyAdminScope("dm")))redirect("/admin/kpi");
   const dmId=number(form,"dm_team_member_id"),clientId=number(form,"agency_client_id");

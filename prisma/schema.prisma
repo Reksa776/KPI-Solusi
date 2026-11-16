@@ -477,6 +477,7 @@ model DmTeamMember {
   entries   TeamActivityEntry[]
   clientAssignments DmClientAssignment[]
   contentTargets DmContentTarget[]
+  spreadsheetSource DmSpreadsheetSource?
 
   @@map("dm_team_members")
 }
@@ -491,6 +492,18 @@ model DmClientAssignment {
   @@id([dmTeamMemberId, agencyClientId])
   @@index([agencyClientId], map: "dm_client_assignment_client")
   @@map("dm_client_assignments")
+}
+
+model DmSpreadsheetSource {
+  dmTeamMemberId Int          @id @map("dm_team_member_id") @db.UnsignedInt
+  spreadsheetUrl String       @map("spreadsheet_url") @db.VarChar(1000)
+  lastSyncedAt   DateTime?    @map("last_synced_at") @db.Timestamp(0)
+  lastSyncStatus String?      @map("last_sync_status") @db.VarChar(500)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  dmTeamMember   DmTeamMember @relation(fields: [dmTeamMemberId], references: [id], onDelete: Cascade, map: "dm_spreadsheet_source_member_fk")
+
+  @@map("dm_spreadsheet_sources")
 }
 
 model DmContentTarget {

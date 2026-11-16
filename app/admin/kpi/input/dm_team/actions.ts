@@ -25,7 +25,12 @@ export async function saveDmTeamMember(form:FormData) {
     });
   }else{
     const user=await getAdminSessionUser();
-    await db.execute("INSERT INTO dm_team_members (full_name,created_by) VALUES (?,?)",[name,user?.id??null]);
+    await db.transaction(async tx=>{
+      await tx.execute("INSERT INTO dm_team_members (full_name,created_by) VALUES (?,?)",[name,user?.id??null]);
+      const [created]=await tx.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM dm_team_members WHERE full_name=? LIMIT 1",[name]);
+      const [sources]=await tx.execute<(RowDataPacket&{spreadsheet_url:string})[]>("SELECT spreadsheet_url FROM dm_spreadsheet_sources ORDER BY dm_team_member_id LIMIT 1");
+      if(created[0]&&sources[0])await tx.execute("INSERT INTO dm_spreadsheet_sources (dm_team_member_id,spreadsheet_url) VALUES (?,?)",[created[0].id,sources[0].spreadsheet_url]);
+    });
   }
   revalidatePath(path); revalidatePath("/admin/kpi"); revalidatePath("/admin"); revalidatePath("/admin/kpi/input/dm_client"); revalidatePath("/performa/dm");
   redirect(`${path}?saved=1`);
