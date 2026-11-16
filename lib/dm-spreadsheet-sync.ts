@@ -43,10 +43,10 @@ function reportDate(value:string){const google=value.match(/^Date\((\d{4}),(\d{1
 function number(value:string){const parsed=Number(value.replace(/[^\d-]/g,""));return Number.isSafeInteger(parsed)&&parsed>=0?parsed:0}
 function parseKpiRows(rows:CsvRow[],dmName:string):MetricRow[]{
   for(let header=0;header<Math.min(rows.length,25);header++){
-    const headers=rows[header].map(value=>value.toLowerCase().trim()),window=rows.slice(Math.max(0,header-5),header+1).flat().map(value=>value.toLowerCase().trim());
-    const views=headers.findIndex(value=>["views","view","tayangan"].includes(value)),contents=headers.findIndex(value=>["jumlah upload","jumlah konten","konten"].includes(value));
+    const headers=rows[header].map(normalize),window=rows.slice(Math.max(0,header-5),header+1).flat().map(normalize);
+    const views=headers.findIndex(value=>["views","view","tayangan"].includes(value)),contents=headers.findIndex(value=>["jumlahupload","jumlahkonten","konten"].includes(value));
     if(views<0||contents<0||!window.some(value=>["tanggal","date"].includes(value)))continue;
-    let dateColumn=headers.findIndex(value=>["tanggal","date"].includes(value));if(dateColumn<0){for(let i=header-1;i>=Math.max(0,header-5);i--){dateColumn=rows[i].findIndex(value=>["tanggal","date"].includes(value.toLowerCase().trim()));if(dateColumn>=0)break}}
+    let dateColumn=headers.findIndex(value=>["tanggal","date"].includes(value));if(dateColumn<0){for(let i=header-1;i>=Math.max(0,header-5);i--){dateColumn=rows[i].findIndex(value=>["tanggal","date"].includes(normalize(value)));if(dateColumn>=0)break}}
     if(dateColumn<0)dateColumn=1;
     const records=new Map<string,MetricRow>();for(const row of rows.slice(header+1)){const date=reportDate(row[dateColumn]??""),marker=(row[0]??"").trim();if(!date||/^total\s+(week|minggu)/i.test(marker))continue;records.set(date,{date,contents:number(row[contents]??""),views:number(row[views]??"")})}
     if(records.size)return[...records.values()].sort((a,b)=>a.date.localeCompare(b.date));

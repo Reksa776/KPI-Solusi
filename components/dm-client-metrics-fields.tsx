@@ -60,13 +60,14 @@ export async function parseDatedReport(file:File,kind:"views"|"tiktok"|"shopee",
   const sheets=await parseXlsx(file),normalize=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
   if(kind==="views"){
     const sheetKey=(value:string)=>normalize(value).replace(/[^a-z0-9]/g,"");
+    const headerKey=(value:string)=>normalize(value).replace(/[^a-z0-9]/g,"");
     const isKpiLayout=(item:Sheet)=>{
       for(let header=0;header<Math.min(item.rows.length,20);header++){
-        const window=item.rows.slice(Math.max(0,header-4),header+1).flat().map(normalize);
-        const headers=item.rows[header].map(normalize);
+        const window=item.rows.slice(Math.max(0,header-4),header+1).flat().map(headerKey);
+        const headers=item.rows[header].map(headerKey);
         const dateColumn=headers.findIndex(value=>["tanggal","date"].includes(value));
         const viewsColumn=headers.findIndex(value=>["views","view","tayangan"].includes(value));
-        const contentsColumn=headers.findIndex(value=>["jumlah upload","jumlah konten","konten"].includes(value));
+        const contentsColumn=headers.findIndex(value=>["jumlahupload","jumlahkonten","konten"].includes(value));
         if((dateColumn>=0||window.includes("tanggal")||window.includes("date"))&&viewsColumn>=0&&contentsColumn>=0)return {header,dateColumn,viewsColumn,contentsColumn};
       }
       return undefined;
@@ -78,7 +79,7 @@ export async function parseDatedReport(file:File,kind:"views"|"tiktok"|"shopee",
       const {header,viewsColumn,contentsColumn}=layout;
       let dateColumn=layout.dateColumn;
       if(dateColumn<0){
-        for(let index=header-1;index>=Math.max(0,header-4);index--){dateColumn=expected.rows[index].findIndex(value=>["tanggal","date"].includes(normalize(value)));if(dateColumn>=0)break;}
+        for(let index=header-1;index>=Math.max(0,header-4);index--){dateColumn=expected.rows[index].findIndex(value=>["tanggal","date"].includes(headerKey(value)));if(dateColumn>=0)break;}
       }
       if(dateColumn<0)dateColumn=1;
       const data=expected.rows.slice(header+1).flatMap(row=>{
