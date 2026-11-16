@@ -1789,3 +1789,11 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dm-client-table td small{font-size:11px}
 .dm-performance-table .dae-grade{font-size:10px;padding:3px 6px;line-height:1.1}
 .dm-chart-summary{margin:10px 0;padding:11px 13px;border:1px solid #3a4430;border-radius:8px;background:#202519;color:#e4e8da;font-size:13px;font-weight:650;line-height:1.5}
+.dm-range-filter{display:grid;gap:7px}
+.dm-range-filter>label{color:#c6cabe;font-size:11px;font-weight:650}
+.dm-range-controls{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}
+.dm-range-controls>select,.dm-range-controls>label>input{height:38px;padding:0 10px;border:1px solid #34392f;border-radius:8px;background:#171a16;color:#edf0e7;color-scheme:dark;font:500 12px 'DM Sans',sans-serif}
+.dm-range-controls>label{display:grid;gap:4px;color:#aeb3a6;font-size:10px}
+.dm-range-controls>label>input{min-width:145px}
+.dm-range-controls>button{height:38px;padding:0 13px;border:0;border-radius:8px;background:#d2fb07;color:#1b2112;font-weight:700}
+@media(max-width:620px){.dm-range-controls{align-items:stretch}.dm-range-controls>select,.dm-range-controls>label,.dm-range-controls>label>input,.dm-range-controls>button{width:100%}}
