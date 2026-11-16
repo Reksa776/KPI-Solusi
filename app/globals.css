@@ -1885,3 +1885,5 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dae-kpi-shell .dae-overview-toolbar .dm-date-range-popover .dm-date-range-days button.in-range{background:#3b432c;color:#e3e9d5}
 .dae-kpi-shell .dae-overview-toolbar .dm-date-range-popover .dm-date-range-days button.selected{background:#c2dc59;color:#202616;font-weight:750}
 .dae-kpi-shell .dae-overview-toolbar .dm-date-range-popover .dm-date-range-days button.selected:hover{background:#cce568;color:#202616}
+.dae-kpi-shell .dm-client-pie-legend li>span{min-width:0;font-size:14px;line-height:1.4;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:700px){.dae-kpi-shell .dm-client-pie-legend li>span{font-size:13px}}
