@@ -1876,3 +1876,12 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dm-date-range-days button.selected:hover{background:#cce568;color:#202616}
 @media(max-width:980px){.dae-overview-toolbar.dm-target-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.dae-overview-toolbar.dm-target-toolbar .dm-range-filter{grid-column:1/-1}.dae-overview-toolbar.dm-target-toolbar .dm-toolbar-side>.kpi-export-row{grid-column:1/-1}}
 @media(max-width:700px){.dae-overview-toolbar.dm-target-toolbar{grid-template-columns:minmax(0,1fr)}.dae-overview-toolbar.dm-target-toolbar .dm-range-filter{grid-column:auto}.dae-overview-toolbar.dm-target-toolbar .dm-range-controls{flex-wrap:wrap}.dae-overview-toolbar.dm-target-toolbar .dm-toolbar-side>.kpi-export-row{grid-column:auto}}
+
+/* Override the dashboard's generic lime button style inside the date grid only. */
+.dae-kpi-shell .dae-overview-toolbar .dm-date-range-popover .dm-date-range-days button{background:#171a16;color:#e0e4db}
+.dae-kpi-shell .dae-overview-toolbar .dm-date-range-popover .dm-date-range-days button:hover:not(:disabled){background:#29332f;color:#d8e4dc}
+.dae-kpi-shell .dae-overview-toolbar .dm-date-range-popover .dm-date-range-days button.outside{background:#171a16;color:#6b7367}
+.dae-kpi-shell .dae-overview-toolbar .dm-date-range-popover .dm-date-range-days button:disabled{background:#171a16;color:#454c43}
+.dae-kpi-shell .dae-overview-toolbar .dm-date-range-popover .dm-date-range-days button.in-range{background:#3b432c;color:#e3e9d5}
+.dae-kpi-shell .dae-overview-toolbar .dm-date-range-popover .dm-date-range-days button.selected{background:#c2dc59;color:#202616;font-weight:750}
+.dae-kpi-shell .dae-overview-toolbar .dm-date-range-popover .dm-date-range-days button.selected:hover{background:#cce568;color:#202616}
