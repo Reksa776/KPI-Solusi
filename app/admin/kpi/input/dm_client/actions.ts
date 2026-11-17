@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { RowDataPacket } from "@/lib/db-types";
 import { verifyAdminScope } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
+import { syncAllDmSpreadsheets } from "@/lib/dm-spreadsheet-sync";
 
 const path="/admin/kpi/input/dm_client";
 const number=(form:FormData,key:string)=>Number(String(form.get(key)??""));
@@ -55,9 +56,17 @@ export async function saveDmSpreadsheetSource(form:FormData) {
   const db=getDb(),[members]=await db.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM dm_team_members ORDER BY id LIMIT 500");
   if(!members.length)redirect(`/admin/kpi/input/dm_team?error=missing`);
   await db.transaction(async tx=>{for(const member of members)await tx.execute("INSERT INTO dm_spreadsheet_sources (dm_team_member_id,spreadsheet_url) VALUES (?,?) ON DUPLICATE KEY UPDATE spreadsheet_url=VALUES(spreadsheet_url),last_synced_at=NULL,last_sync_status=NULL",[member.id,url])});
+  // Import the workbook as part of saving its source so the application
+  // database is populated even before the client page hydrates.
+  let syncSummary="sync=error";
+  try{
+    const result=await syncAllDmSpreadsheets(),successful=result.results.filter(item=>item.ok);
+    const rows=successful.reduce((sum,item)=>sum+((item as {total?:number}).total??0),0),created=successful.reduce((sum,item)=>sum+((item as {created?:number}).created??0),0),updated=successful.reduce((sum,item)=>sum+((item as {updated?:number}).updated??0),0);
+    syncSummary=new URLSearchParams({synced:String(result.updated),processed:String(result.processed),rows:String(rows),created:String(created),updated:String(updated),failed:String(result.failed)}).toString();
+  }catch{}
   revalidatePath(path);revalidatePath("/performa/dm");
   revalidatePath("/admin/kpi/input/dm_team");
-  redirect(`/admin/kpi/input/dm_team?saved=sheet`);
+  redirect(`/admin/kpi/input/dm_team?saved=sheet&${syncSummary}`);
 }
 
 export async function deleteDmClientAssignment(form:FormData) {
