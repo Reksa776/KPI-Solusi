@@ -42,16 +42,29 @@ const normalize=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\
 function reportDate(value:string){const google=value.match(/^Date\((\d{4}),(\d{1,2}),(\d{1,2})\)$/);if(google)return parseReportDate(`${google[3]}/${Number(google[2])+1}/${google[1]}`);return parseReportDate(value)}
 function number(value:string){const direct=Number(value.trim());if(Number.isSafeInteger(direct)&&direct>=0)return direct;const digits=Number(value.replace(/[^\d-]/g,""));return Number.isSafeInteger(digits)&&digits>=0?digits:0}
 function parseKpiRows(rows:CsvRow[],dmName:string):MetricRow[]{
-  for(let header=0;header<Math.min(rows.length,25);header++){
-    const headers=rows[header].map(normalize);
-    const views=headers.findIndex(value=>["views","view","tayangan"].includes(value)),contents=headers.findIndex(value=>["jumlahupload","jumlahkonten","konten"].includes(value));
-    if(views<0||contents<0)continue;
-    let dateColumn=headers.findIndex(value=>["tanggal","date"].includes(value));if(dateColumn<0){for(let i=header-1;i>=Math.max(0,header-5);i--){dateColumn=rows[i].findIndex(value=>["tanggal","date"].includes(normalize(value)));if(dateColumn>=0)break}}
-    if(dateColumn<0)dateColumn=1;
-    const records=new Map<string,MetricRow>();for(const row of rows.slice(header+1)){const date=reportDate(row[dateColumn]??""),marker=(row[0]??"").trim();if(!date||/^total\s+(week|minggu)/i.test(marker))continue;records.set(date,{date,contents:number(row[contents]??""),views:number(row[views]??"")})}
-    if(records.size)return[...records.values()].sort((a,b)=>a.date.localeCompare(b.date));
+  let viewsColumn=-1,contentsColumn=-1,dateColumn=-1,dataStart=0;
+  for(let rowIndex=0;rowIndex<Math.min(rows.length,30);rowIndex++){
+    const row=rows[rowIndex]??[];
+    for(let column=0;column<row.length;column++){
+      const header=normalize(row[column]??"");
+      if(viewsColumn<0&&["views","view","tayangan"].includes(header)){viewsColumn=column;dataStart=Math.max(dataStart,rowIndex+1)}
+      if(contentsColumn<0&&["jumlahupload","jumlahkonten","konten"].includes(header)){contentsColumn=column;dataStart=Math.max(dataStart,rowIndex+1)}
+      if(dateColumn<0&&["tanggal","date"].includes(header))dateColumn=column;
+    }
   }
-  throw new Error(`Kolom Tanggal, Views, dan Jumlah Upload tidak ditemukan pada tab ${dmName}.`);
+  // This workbook's table is fixed at B=Date, C=Views, F=Jumlah Upload.
+  // Keep that known layout as a fallback if Google changes the header cell representation.
+  if(dateColumn<0)dateColumn=1;
+  if(viewsColumn<0)viewsColumn=2;
+  if(contentsColumn<0)contentsColumn=5;
+  const records=new Map<string,MetricRow>();
+  for(const row of rows.slice(Math.min(dataStart,rows.length))){
+    const date=reportDate(row[dateColumn]??""),marker=(row[0]??"").trim();
+    if(!date||/^total\s+(week|minggu)/i.test(marker))continue;
+    records.set(date,{date,contents:number(row[contentsColumn]??""),views:number(row[viewsColumn]??"")});
+  }
+  if(records.size)return[...records.values()].sort((a,b)=>a.date.localeCompare(b.date));
+  throw new Error(`Tanggal tidak terbaca pada tab ${dmName}; format yang dibutuhkan: tanggal kolom B, Views kolom C, Jumlah Upload kolom F.`);
 }
 function sheetId(url:string){const parsed=new URL(url);if(parsed.protocol!=="https:"||parsed.hostname!=="docs.google.com")throw new Error("Link harus berasal dari Google Sheets.");const match=parsed.pathname.match(/^\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);if(!match)throw new Error("Format link spreadsheet tidak valid.");return match[1]}
 type SourceMember={dm_team_member_id:number;full_name:string;spreadsheet_url:string};
