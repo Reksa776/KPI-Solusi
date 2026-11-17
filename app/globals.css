@@ -1017,6 +1017,11 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dm-sheet-source-form input{width:100%;height:38px;padding:0 10px;border:1px solid #34392f;border-radius:7px;background:#111410;color:#edf0e7;font:500 12px 'DM Sans',sans-serif}
 .dm-sheet-source-form .form-actions{margin:0}
 .dm-sheet-source>.dm-report-notice{color:#aeb3a6;font-size:10px}
+.dm-sheet-daily-table{min-width:1060px}
+.dm-sheet-sales-form{display:flex;align-items:center;gap:7px;min-width:390px}
+.dm-sheet-sales-form label{display:block;flex:1;min-width:105px}
+.dm-sheet-sales-form input{width:100%;height:34px;padding:0 8px;border:1px solid #34392f;border-radius:7px;background:#111410;color:#edf0e7;font:500 12px 'DM Sans',sans-serif}
+.dm-sheet-sales-form .button{white-space:nowrap;padding:7px 10px;font-size:10px}
 .dm-sheet-settings{margin-top:8px;color:#aeb3a6;font-size:11px}
 .dm-sheet-settings>summary{width:max-content;color:#b9c151;font-size:10px;font-weight:650;cursor:pointer}
 .dm-sheet-settings[open]{position:relative;z-index:2}
