@@ -63,12 +63,11 @@ export async function parseDatedReport(file:File,kind:"views"|"tiktok"|"shopee",
     const headerKey=(value:string)=>normalize(value).replace(/[^a-z0-9]/g,"");
     const isKpiLayout=(item:Sheet)=>{
       for(let header=0;header<Math.min(item.rows.length,20);header++){
-        const window=item.rows.slice(Math.max(0,header-4),header+1).flat().map(headerKey);
         const headers=item.rows[header].map(headerKey);
         const dateColumn=headers.findIndex(value=>["tanggal","date"].includes(value));
         const viewsColumn=headers.findIndex(value=>["views","view","tayangan"].includes(value));
         const contentsColumn=headers.findIndex(value=>["jumlahupload","jumlahkonten","konten"].includes(value));
-        if((dateColumn>=0||window.includes("tanggal")||window.includes("date"))&&viewsColumn>=0&&contentsColumn>=0)return {header,dateColumn,viewsColumn,contentsColumn};
+        if(viewsColumn>=0&&contentsColumn>=0)return {header,dateColumn,viewsColumn,contentsColumn};
       }
       return undefined;
     };
@@ -107,7 +106,7 @@ export async function parseDatedReport(file:File,kind:"views"|"tiktok"|"shopee",
   }
   const sheet=sheets.find(item=>normalize(item.name).includes("pesanan dibayar"))!,header=sheet.rows.findIndex(row=>row.some(value=>normalize(value).includes("total penjualan"))),date=reportDate(sheet.rows[header+1]?.[0]??"");if(!date)throw new Error("Tanggal pada ringkasan Pesanan Dibayar tidak terbaca.");return[{date,value}];
 }
-function numeric(value:string){const digits=value.replace(/[^\d-]/g,"");const parsed=Number(digits);return Number.isSafeInteger(parsed)&&parsed>=0?parsed:0}
+function numeric(value:string){const direct=Number(value.trim());if(Number.isSafeInteger(direct)&&direct>=0)return direct;const digits=Number(value.replace(/[^\d-]/g,""));return Number.isSafeInteger(digits)&&digits>=0?digits:0}
 function total(report:Report|undefined,index:number){return report&&index>=0?report.rows.reduce((sum,row)=>sum+numeric(row[index]??""),0):0}
 function matchColumn(headers:string[],terms:string[]){let best=-1,score=0;headers.forEach((header,index)=>{const current=headerScore(header,terms);if(current>score){best=index;score=current}});return best}
 const viewsTerms=["video views","total viewers","viewer","views","tayangan","ditonton"];

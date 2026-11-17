@@ -40,12 +40,12 @@ function parseWorkbook(bytes:Buffer):WorkbookSheet[]{
 }
 const normalize=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
 function reportDate(value:string){const google=value.match(/^Date\((\d{4}),(\d{1,2}),(\d{1,2})\)$/);if(google)return parseReportDate(`${google[3]}/${Number(google[2])+1}/${google[1]}`);return parseReportDate(value)}
-function number(value:string){const parsed=Number(value.replace(/[^\d-]/g,""));return Number.isSafeInteger(parsed)&&parsed>=0?parsed:0}
+function number(value:string){const direct=Number(value.trim());if(Number.isSafeInteger(direct)&&direct>=0)return direct;const digits=Number(value.replace(/[^\d-]/g,""));return Number.isSafeInteger(digits)&&digits>=0?digits:0}
 function parseKpiRows(rows:CsvRow[],dmName:string):MetricRow[]{
   for(let header=0;header<Math.min(rows.length,25);header++){
-    const headers=rows[header].map(normalize),window=rows.slice(Math.max(0,header-5),header+1).flat().map(normalize);
+    const headers=rows[header].map(normalize);
     const views=headers.findIndex(value=>["views","view","tayangan"].includes(value)),contents=headers.findIndex(value=>["jumlahupload","jumlahkonten","konten"].includes(value));
-    if(views<0||contents<0||!window.some(value=>["tanggal","date"].includes(value)))continue;
+    if(views<0||contents<0)continue;
     let dateColumn=headers.findIndex(value=>["tanggal","date"].includes(value));if(dateColumn<0){for(let i=header-1;i>=Math.max(0,header-5);i--){dateColumn=rows[i].findIndex(value=>["tanggal","date"].includes(normalize(value)));if(dateColumn>=0)break}}
     if(dateColumn<0)dateColumn=1;
     const records=new Map<string,MetricRow>();for(const row of rows.slice(header+1)){const date=reportDate(row[dateColumn]??""),marker=(row[0]??"").trim();if(!date||/^total\s+(week|minggu)/i.test(marker))continue;records.set(date,{date,contents:number(row[contents]??""),views:number(row[views]??"")})}
