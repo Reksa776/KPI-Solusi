@@ -42,13 +42,13 @@ const normalize=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\
 function reportDate(value:string){const google=value.match(/^Date\((\d{4}),(\d{1,2}),(\d{1,2})\)$/);if(google)return parseReportDate(`${google[3]}/${Number(google[2])+1}/${google[1]}`);return parseReportDate(value)}
 function number(value:string){const direct=Number(value.trim());if(Number.isSafeInteger(direct)&&direct>=0)return direct;const digits=Number(value.replace(/[^\d-]/g,""));return Number.isSafeInteger(digits)&&digits>=0?digits:0}
 function parseKpiRows(rows:CsvRow[],dmName:string):MetricRow[]{
-  let viewsColumn=-1,contentsColumn=-1,dateColumn=-1,dataStart=0;
+  let viewsColumn=-1,contentsColumn=-1,dateColumn=-1;
   for(let rowIndex=0;rowIndex<Math.min(rows.length,30);rowIndex++){
     const row=rows[rowIndex]??[];
     for(let column=0;column<row.length;column++){
       const header=normalize(row[column]??"");
-      if(viewsColumn<0&&["views","view","tayangan"].includes(header)){viewsColumn=column;dataStart=Math.max(dataStart,rowIndex+1)}
-      if(contentsColumn<0&&["jumlahupload","jumlahkonten","konten"].includes(header)){contentsColumn=column;dataStart=Math.max(dataStart,rowIndex+1)}
+      if(viewsColumn<0&&["views","view","tayangan"].includes(header))viewsColumn=column;
+      if(contentsColumn<0&&["jumlahupload","jumlahkonten","konten"].includes(header))contentsColumn=column;
       if(dateColumn<0&&["tanggal","date"].includes(header))dateColumn=column;
     }
   }
@@ -57,8 +57,17 @@ function parseKpiRows(rows:CsvRow[],dmName:string):MetricRow[]{
   if(dateColumn<0)dateColumn=1;
   if(viewsColumn<0)viewsColumn=2;
   if(contentsColumn<0)contentsColumn=5;
+  // Some tabs export dates differently (or move the header row). Find the
+  // column with the most parseable dates, preferring the declared date column.
+  const dateScores=rows.reduce<number[]>((scores,row)=>{
+    row.forEach((value,index)=>{if(reportDate(value))scores[index]=(scores[index]??0)+1});return scores;
+  },[]);
+  const bestDateColumn=dateScores.reduce((best,count,index)=>count>(dateScores[best]??0)?index:best,dateColumn);
+  if((dateScores[bestDateColumn]??0)>0)dateColumn=bestDateColumn;
   const records=new Map<string,MetricRow>();
-  for(const row of rows.slice(Math.min(dataStart,rows.length))){
+  // Do not trust the detected header row as a hard boundary; weekly subtotal
+  // rows and blank spacer rows are safely ignored below.
+  for(const row of rows){
     const date=reportDate(row[dateColumn]??""),marker=(row[0]??"").trim();
     if(!date||/^total\s+(week|minggu)/i.test(marker))continue;
     records.set(date,{date,contents:number(row[contentsColumn]??""),views:number(row[viewsColumn]??"")});
@@ -72,16 +81,29 @@ async function syncMember(dm:SourceMember,sheets:WorkbookSheet[]){
   const sheet=sheets.find(item=>normalize(item.name)===normalize(dm.full_name));
   if(!sheet)throw new Error(`Tab “${dm.full_name}” tidak ada. Tab yang ditemukan: ${sheets.map(item=>item.name).join(", ")}.`);
   const records=parseKpiRows(sheet.rows,dm.full_name),weekOf=(date:string)=>monthWeekStartForDate(date)??date,sourceTitle=`Performa spreadsheet · ${dm.full_name}`,db=getDb();let created=0,updated=0;
-  await db.transaction(async tx=>{
+  const updateRows=async()=>db.transaction(async tx=>{
+    let transactionCreated=0,transactionUpdated=0;
     for(const item of records){const week=weekOf(item.date);const[daily]=await tx.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='daily' AND dm_team_member_id=? AND agency_client_id IS NULL AND title=? AND activity_date=? ORDER BY id LIMIT 1 FOR UPDATE",[dm.dm_team_member_id,sourceTitle,item.date]);
       let weeklyEntry=false;if(!daily.length){const[weekly]=await tx.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='weekly' AND dm_team_member_id=? AND agency_client_id IS NULL AND week_start=? ORDER BY id LIMIT 1 FOR UPDATE",[dm.dm_team_member_id,week]);weeklyEntry=Boolean(weekly[0])}
       if(weeklyEntry)throw new Error(`Tanggal ${item.date} bertabrakan dengan laporan mingguan tingkat DM.`);
-      if(daily[0]){await tx.execute("UPDATE team_activity_entries SET contents=?,video_views=? WHERE id=?",[item.contents,item.views,daily[0].id]);updated++}
-      else{await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,dm_team_member_id,dm_person) VALUES ('dm','dm_client',?,?,?, 'daily', ?,?,0,0,0,0,0,?,?)",[sourceTitle,item.date,week,item.contents,item.views,dm.dm_team_member_id,dm.full_name]);created++}
+      if(daily[0]){await tx.execute("UPDATE team_activity_entries SET contents=?,video_views=? WHERE id=?",[item.contents,item.views,daily[0].id]);transactionUpdated++}
+      else{await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,dm_team_member_id,dm_person) VALUES ('dm','dm_client',?,?,?, 'daily', ?,?,0,0,0,0,0,?,?)",[sourceTitle,item.date,week,item.contents,item.views,dm.dm_team_member_id,dm.full_name]);transactionCreated++}
     }
     const dates=records.map(item=>item.date),placeholders=dates.map(()=>"?").join(","),[stale]=await tx.execute<(RowDataPacket&{id:number})[]>(`SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='daily' AND dm_team_member_id=? AND agency_client_id IS NULL AND title=?${dates.length?` AND activity_date NOT IN (${placeholders})`:""} FOR UPDATE`,[dm.dm_team_member_id,sourceTitle,...dates]);
     for(const old of stale)await tx.execute("UPDATE team_activity_entries SET contents=0,video_views=0 WHERE id=?",[old.id]);
+    return{created:transactionCreated,updated:transactionUpdated};
   });
+  // MySQL may deadlock when a scheduled sync overlaps a manual one. Retry
+  // transient transaction conflicts; never mark a partially applied sync OK.
+  for(let attempt=0;;attempt++){
+    try{const counts=await updateRows();created=counts.created;updated=counts.updated;break}catch(error){
+      const detail=error as {code?:string;meta?:{code?:string;message?:string};message?:string};
+      const message=[detail?.message,detail?.meta?.code,detail?.meta?.message].filter(Boolean).join(" ");
+      const transient=detail?.code==="P2034"||/\b1213\b|deadlock|write conflict/i.test(message);
+      if(!transient||attempt>=3)throw error;
+      await new Promise(resolve=>setTimeout(resolve,150*(attempt+1)));
+    }
+  }
   const status=`OK · ${records.length} tanggal · ${created} baru, ${updated} diperbarui`;await db.execute("UPDATE dm_spreadsheet_sources SET last_synced_at=CURRENT_TIMESTAMP,last_sync_status=? WHERE dm_team_member_id=?",[status,dm.dm_team_member_id]);return{ok:true,dm:dm.full_name,dmId:Number(dm.dm_team_member_id),total:records.length,created,updated};
 }
 async function setError(dm:SourceMember,error:string){await getDb().execute("UPDATE dm_spreadsheet_sources SET last_synced_at=CURRENT_TIMESTAMP,last_sync_status=? WHERE dm_team_member_id=?",[error.slice(0,500),dm.dm_team_member_id]).catch(()=>undefined);return{ok:false,dm:dm.full_name,dmId:Number(dm.dm_team_member_id),error}}
@@ -96,10 +118,11 @@ export async function syncAllDmSpreadsheets(){
     const bytes=Buffer.from(await response.arrayBuffer());if(bytes.length<4||bytes.readUInt32LE(0)!==0x04034b50)throw new Error("Google tidak mengirim file Excel. Pastikan spreadsheet bisa diunduh oleh viewer.");
     sheets=parseWorkbook(bytes);
   }catch(error){const message=error instanceof Error?error.message:"Workbook spreadsheet tidak bisa dibaca.";const results=await Promise.all(members.map(member=>setError(member,message)));return{processed:results.length,updated:0,failed:results.length,results}}
-  const linkId=sheetId(members[0].spreadsheet_url),results=await Promise.all(members.map(async member=>{
-    if(sheetId(member.spreadsheet_url)!==linkId)return setError(member,"Link spreadsheet DM ini berbeda dari link utama.");
-    try{return await syncMember(member,sheets)}catch(error){return setError(member,error instanceof Error?error.message:"Sinkronisasi gagal.")}
-  }));
+  const linkId=sheetId(members[0].spreadsheet_url),results=[] as (Awaited<ReturnType<typeof syncMember>>|Awaited<ReturnType<typeof setError>>)[];
+  for(const member of members){
+    if(sheetId(member.spreadsheet_url)!==linkId){results.push(await setError(member,"Link spreadsheet DM ini berbeda dari link utama."));continue}
+    try{results.push(await syncMember(member,sheets))}catch(error){results.push(await setError(member,error instanceof Error?error.message:"Sinkronisasi gagal."))}
+  }
   return{processed:results.length,updated:results.filter(result=>result.ok).length,failed:results.filter(result=>!result.ok).length,results};
 }
 
