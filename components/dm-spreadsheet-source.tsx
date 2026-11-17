@@ -11,11 +11,13 @@ export default function DmSpreadsheetSource({dmIds,dmNames,url,lastSyncedAt,last
     running.current=true;setBusy(true);
     try{
       const response=await fetch("/api/admin/kpi/dm-spreadsheet-sync",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({all:true}),cache:"no-store"});
-      const result=await response.json() as {processed?:number;updated?:number;failed?:number;error?:string;results?:{dm?:string;ok?:boolean;error?:string}[]};
+      const result=await response.json() as {processed?:number;updated?:number;failed?:number;error?:string;results?:{dm?:string;ok?:boolean;error?:string;total?:number;created?:number;updated?:number}[]};
       if(!response.ok)throw new Error(result.error??"Sinkronisasi gagal.");
       const errors=(result.results??[]).filter(item=>!item.ok).map(item=>`${item.dm??"DM"}: ${item.error??"Gagal"}`).join(" · ");
       const failureSummary=result.failed?` · ${result.failed} gagal${errors?`: ${errors}`:""}`:"";
-      setStatus(`${result.updated??0}/${result.processed??0} tab DM tersinkron${failureSummary}`);
+      const successful=(result.results??[]).filter(item=>item.ok),rows=successful.reduce((sum,item)=>sum+(item.total??0),0),created=successful.reduce((sum,item)=>sum+(item.created??0),0),updated=successful.reduce((sum,item)=>sum+(item.updated??0),0);
+      const rowSummary=successful.length?` · ${rows} baris data tersimpan (${created} baru, ${updated} diperbarui)`:"";
+      setStatus(`${successful.length}/${result.processed??0} tab DM berhasil${rowSummary}${failureSummary}`);
       router.refresh();
     }catch(error){setStatus(error instanceof Error?error.message:"Sinkronisasi gagal.")}finally{running.current=false;setBusy(false)}
   },[url,dmCount,router]);
