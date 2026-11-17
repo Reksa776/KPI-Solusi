@@ -51,10 +51,10 @@ export async function saveDmSpreadsheetSource(form:FormData) {
   if(!(await verifyAdminScope("dm")))redirect("/admin/kpi");
   const url=String(form.get("spreadsheet_url")??"").trim().slice(0,1000);
   let parsed:URL;
-  try{parsed=new URL(url)}catch{redirect(`/admin/kpi/input/dm_team?error=sheet_url`)}
-  if(parsed.protocol!=="https:"||parsed.hostname!=="docs.google.com"||!/^\/spreadsheets\/d\/[a-zA-Z0-9_-]+/.test(parsed.pathname))redirect(`/admin/kpi/input/dm_team?error=sheet_url`);
+  try{parsed=new URL(url)}catch{redirect(`${path}?error=sheet_url`)}
+  if(parsed.protocol!=="https:"||parsed.hostname!=="docs.google.com"||!/^\/spreadsheets\/d\/[a-zA-Z0-9_-]+/.test(parsed.pathname))redirect(`${path}?error=sheet_url`);
   const db=getDb(),[members]=await db.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM dm_team_members ORDER BY id LIMIT 500");
-  if(!members.length)redirect(`/admin/kpi/input/dm_team?error=missing`);
+  if(!members.length)redirect(`${path}?error=missing`);
   await db.transaction(async tx=>{for(const member of members)await tx.execute("INSERT INTO dm_spreadsheet_sources (dm_team_member_id,spreadsheet_url) VALUES (?,?) ON DUPLICATE KEY UPDATE spreadsheet_url=VALUES(spreadsheet_url),last_synced_at=NULL,last_sync_status=NULL",[member.id,url])});
   // Import the workbook as part of saving its source so the application
   // database is populated even before the client page hydrates.
@@ -66,18 +66,18 @@ export async function saveDmSpreadsheetSource(form:FormData) {
   }catch{}
   revalidatePath(path);revalidatePath("/performa/dm");
   revalidatePath("/admin/kpi/input/dm_team");
-  redirect(`/admin/kpi/input/dm_team?saved=sheet&${syncSummary}`);
+  redirect(`/admin/kpi/input/dm_client?sourceSaved=1&${syncSummary}`);
 }
 
 export async function saveSpreadsheetDmRevenue(form:FormData) {
   if(!(await verifyAdminScope("dm")))redirect("/admin/kpi");
   const id=number(form,"id"),tiktok=number(form,"tiktok_sales"),shopee=number(form,"shopee_sales");
-  if(!Number.isSafeInteger(id)||id<1||!Number.isSafeInteger(tiktok)||tiktok<0||!Number.isSafeInteger(shopee)||shopee<0)redirect("/admin/kpi/input/dm_team?error=sales");
+  if(!Number.isSafeInteger(id)||id<1||!Number.isSafeInteger(tiktok)||tiktok<0||!Number.isSafeInteger(shopee)||shopee<0)redirect("/admin/kpi/input/dm_client?error=sales");
   const db=getDb(),[rows]=await db.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM team_activity_entries WHERE id=? AND entry_type='dm_client' AND input_frequency='daily' AND agency_client_id IS NULL AND title LIKE 'Performa spreadsheet · %' LIMIT 1",[id]);
-  if(!rows.length)redirect("/admin/kpi/input/dm_team?error=sales");
+  if(!rows.length)redirect("/admin/kpi/input/dm_client?error=sales");
   await db.execute("UPDATE team_activity_entries SET tiktok_sales=?,shopee_sales=? WHERE id=?",[tiktok,shopee,id]);
-  revalidatePath("/admin/kpi/input/dm_team");revalidatePath("/admin/kpi");revalidatePath("/performa/dm");revalidatePath("/admin");
-  redirect("/admin/kpi/input/dm_team?revenueSaved=1");
+  revalidatePath(path);revalidatePath("/admin/kpi");revalidatePath("/performa/dm");revalidatePath("/admin");
+  redirect("/admin/kpi/input/dm_client?revenueSaved=1");
 }
 
 export async function deleteDmClientAssignment(form:FormData) {
