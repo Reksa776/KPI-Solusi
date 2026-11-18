@@ -1,11 +1,12 @@
 import { inflateRawSync } from "node:zlib";
 import { getDb } from "@/lib/db";
-import { monthWeekStartForDate } from "@/lib/dae-weeks";
+import { getMonthWeekStart, monthWeekStartForDate } from "@/lib/dae-weeks";
 import { parseReportDate } from "@/lib/report-date";
 import type { RowDataPacket } from "@/lib/db-types";
 
 type CsvRow=string[];
 type MetricRow={date:string;contents:number;views:number};
+type ClientWeekMetric={clientName:string;week:number;contents:number;weekStart:string};
 type WorkbookSheet={name:string;rows:CsvRow[]};
 const decoder=new TextDecoder();
 function zipEntry(bytes:Buffer,wanted:string){
@@ -75,22 +76,53 @@ function parseKpiRows(rows:CsvRow[],dmName:string):MetricRow[]{
   if(records.size)return[...records.values()].sort((a,b)=>a.date.localeCompare(b.date));
   throw new Error(`Tanggal tidak terbaca pada tab ${dmName}; format yang dibutuhkan: tanggal kolom B, Views kolom C, Jumlah Upload kolom F.`);
 }
+function parseClientWeekRows(rows:CsvRow[],month:string):ClientWeekMetric[]{
+  const result:ClientWeekMetric[]=[];
+  rows.forEach((row,index)=>{
+    const heading=(row[9]??"").trim().match(/^Panel Monitoring Mingguan\s*&\s*Bulanan\s+(.+)$/i);
+    if(!heading)return;
+    for(const panelRow of rows.slice(index+1,index+9)){
+      const weekMatch=(panelRow[9]??"").trim().match(/^Minggu\s*(\d+)$/i);
+      if(!weekMatch)continue;
+      const week=Number(weekMatch[1]),weekStart=getMonthWeekStart(month,week);
+      if(!weekStart)continue;
+      result.push({clientName:heading[1].trim(),week,weekStart,contents:number(panelRow[11]??"")});
+    }
+  });
+  return result;
+}
 function sheetId(url:string){const parsed=new URL(url);if(parsed.protocol!=="https:"||parsed.hostname!=="docs.google.com")throw new Error("Link harus berasal dari Google Sheets.");const match=parsed.pathname.match(/^\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);if(!match)throw new Error("Format link spreadsheet tidak valid.");return match[1]}
 type SourceMember={dm_team_member_id:number;full_name:string;spreadsheet_url:string};
 async function syncMember(dm:SourceMember,sheets:WorkbookSheet[]){
   const sheet=sheets.find(item=>normalize(item.name)===normalize(dm.full_name));
   if(!sheet)throw new Error(`Tab “${dm.full_name}” tidak ada. Tab yang ditemukan: ${sheets.map(item=>item.name).join(", ")}.`);
-  const records=parseKpiRows(sheet.rows,dm.full_name),weekOf=(date:string)=>monthWeekStartForDate(date)??date,sourceTitle=`Performa spreadsheet · ${dm.full_name}`,db=getDb();let created=0,updated=0;
+  const records=parseKpiRows(sheet.rows,dm.full_name),month=records.at(-1)?.date.slice(0,7);
+  if(!month)throw new Error(`Bulan tidak terbaca pada tab ${dm.full_name}.`);
+  const clientRows=parseClientWeekRows(sheet.rows,month),sourceTitle=`Performa spreadsheet · ${dm.full_name}`,db=getDb();let created=0,updated=0;
+  const[assignedClients]=await db.execute<(RowDataPacket&{agency_client_id:number|string|bigint;client_name:string;client_type:string})[]>("SELECT c.id AS agency_client_id,c.client_name,c.client_type FROM dm_client_assignments a JOIN agency_clients c ON c.id=a.agency_client_id WHERE a.dm_team_member_id=? ORDER BY c.client_name",[dm.dm_team_member_id]);
+  const clientsByName=new Map(assignedClients.map(client=>[normalize(client.client_name),{id:Number(client.agency_client_id),name:client.client_name,type:client.client_type}]));
+  const clientMetrics=clientRows.map(item=>{const client=clientsByName.get(normalize(item.clientName));if(!client)throw new Error(`Client “${item.clientName}” dari tab ${dm.full_name} tidak cocok dengan pasangan client aktif di aplikasi.`);return{...item,client}});
   const updateRows=async()=>db.transaction(async tx=>{
     let transactionCreated=0,transactionUpdated=0;
-    for(const item of records){const week=weekOf(item.date);const[daily]=await tx.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='daily' AND dm_team_member_id=? AND title=? AND activity_date=? ORDER BY id LIMIT 1 FOR UPDATE",[dm.dm_team_member_id,sourceTitle,item.date]);
+    for(const item of records){const week=monthWeekStartForDate(item.date)??item.date;const[daily]=await tx.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='daily' AND dm_team_member_id=? AND title=? AND activity_date=? ORDER BY id LIMIT 1 FOR UPDATE",[dm.dm_team_member_id,sourceTitle,item.date]);
       let weeklyEntry=false;if(!daily.length){const[weekly]=await tx.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='weekly' AND dm_team_member_id=? AND agency_client_id IS NULL AND week_start=? ORDER BY id LIMIT 1 FOR UPDATE",[dm.dm_team_member_id,week]);weeklyEntry=Boolean(weekly[0])}
       if(weeklyEntry)throw new Error(`Tanggal ${item.date} bertabrakan dengan laporan mingguan tingkat DM.`);
-      if(daily[0]){await tx.execute("UPDATE team_activity_entries SET contents=?,video_views=? WHERE id=?",[item.contents,item.views,daily[0].id]);transactionUpdated++}
-      else{await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,dm_team_member_id,dm_person) VALUES ('dm','dm_client',?,?,?, 'daily', ?,?,0,0,0,0,0,?,?)",[sourceTitle,item.date,week,item.contents,item.views,dm.dm_team_member_id,dm.full_name]);transactionCreated++}
+      if(daily[0]){await tx.execute("UPDATE team_activity_entries SET contents=0,video_views=? WHERE id=?",[item.views,daily[0].id]);transactionUpdated++}
+      else{await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,dm_team_member_id,dm_person) VALUES ('dm','dm_client',?,?,?, 'daily', 0,?,0,0,0,0,0,?,?)",[sourceTitle,item.date,week,item.views,dm.dm_team_member_id,dm.full_name]);transactionCreated++}
     }
-    const dates=records.map(item=>item.date),placeholders=dates.map(()=>"?").join(","),[stale]=await tx.execute<(RowDataPacket&{id:number})[]>(`SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='daily' AND dm_team_member_id=? AND title=?${dates.length?` AND activity_date NOT IN (${placeholders})`:""} FOR UPDATE`,[dm.dm_team_member_id,sourceTitle,...dates]);
+    const monthStart=`${month}-01`,nextMonth=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),1)).toISOString().slice(0,10);
+    const dates=records.map(item=>item.date),placeholders=dates.map(()=>"?").join(","),[stale]=await tx.execute<(RowDataPacket&{id:number})[]>(`SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='daily' AND dm_team_member_id=? AND title=? AND activity_date>=? AND activity_date<?${dates.length?` AND activity_date NOT IN (${placeholders})`:""} FOR UPDATE`,[dm.dm_team_member_id,sourceTitle,monthStart,nextMonth,...dates]);
     for(const old of stale)await tx.execute("UPDATE team_activity_entries SET contents=0,video_views=0 WHERE id=?",[old.id]);
+    const importedTitle=(client:{name:string})=>`Performa spreadsheet · ${dm.full_name} · ${client.name}`;
+    const activeWeeklyKeys=new Set<string>();
+    for(const item of clientMetrics){
+      const title=importedTitle(item.client),key=`${item.client.id}:${item.weekStart}`;activeWeeklyKeys.add(key);
+      const[weekly]=await tx.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='weekly' AND dm_team_member_id=? AND agency_client_id=? AND week_start=? ORDER BY id LIMIT 1 FOR UPDATE",[dm.dm_team_member_id,item.client.id,item.weekStart]);
+      if(weekly[0]){await tx.execute("UPDATE team_activity_entries SET title=?,client_name=?,client_type=?,activity_date=?,contents=? WHERE id=?",[title,item.client.name,item.client.type,item.weekStart,item.contents,weekly[0].id]);transactionUpdated++}
+      else{await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,client_name,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,dm_team_member_id,dm_person,client_type,agency_client_id) VALUES ('dm','dm_client',?,?,?,?, 'weekly', ?,0,0,0,0,0,0,?,?,?,?)",[title,item.client.name,item.weekStart,item.weekStart,item.contents,dm.dm_team_member_id,dm.full_name,item.client.type,item.client.id]);transactionCreated++}
+    }
+    const firstWeek=getMonthWeekStart(month,1);
+    if(firstWeek){const[oldWeekly]=await tx.execute<(RowDataPacket&{id:number;agency_client_id:number|bigint;week_start:string|Date})[]>("SELECT id,agency_client_id,week_start FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='weekly' AND dm_team_member_id=? AND title LIKE 'Performa spreadsheet · %' AND week_start>=? AND week_start<? FOR UPDATE",[dm.dm_team_member_id,firstWeek,nextMonth]);for(const old of oldWeekly){const weekStart=typeof old.week_start==="string"?old.week_start.slice(0,10):old.week_start.toISOString().slice(0,10);if(!activeWeeklyKeys.has(`${Number(old.agency_client_id)}:${weekStart}`))await tx.execute("UPDATE team_activity_entries SET contents=0 WHERE id=?",[old.id]);}}
     return{created:transactionCreated,updated:transactionUpdated};
   });
   // MySQL may deadlock when a scheduled sync overlaps a manual one. Retry
@@ -104,7 +136,7 @@ async function syncMember(dm:SourceMember,sheets:WorkbookSheet[]){
       await new Promise(resolve=>setTimeout(resolve,150*(attempt+1)));
     }
   }
-  const status=`OK · ${records.length} tanggal · ${created} baru, ${updated} diperbarui`;await db.execute("UPDATE dm_spreadsheet_sources SET last_synced_at=CURRENT_TIMESTAMP,last_sync_status=? WHERE dm_team_member_id=?",[status,dm.dm_team_member_id]);return{ok:true,dm:dm.full_name,dmId:Number(dm.dm_team_member_id),total:records.length,created,updated};
+  const status=`OK · ${records.length} tanggal views, ${clientMetrics.length} baris client mingguan · ${created} baru, ${updated} diperbarui`;await db.execute("UPDATE dm_spreadsheet_sources SET last_synced_at=CURRENT_TIMESTAMP,last_sync_status=? WHERE dm_team_member_id=?",[status,dm.dm_team_member_id]);return{ok:true,dm:dm.full_name,dmId:Number(dm.dm_team_member_id),total:records.length+clientMetrics.length,created,updated};
 }
 async function setError(dm:SourceMember,error:string){await getDb().execute("UPDATE dm_spreadsheet_sources SET last_synced_at=CURRENT_TIMESTAMP,last_sync_status=? WHERE dm_team_member_id=?",[error.slice(0,500),dm.dm_team_member_id]).catch(()=>undefined);return{ok:false,dm:dm.full_name,dmId:Number(dm.dm_team_member_id),error}}
 
