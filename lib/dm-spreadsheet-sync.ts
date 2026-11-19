@@ -5,7 +5,7 @@ import { parseReportDate } from "@/lib/report-date";
 import type { RowDataPacket } from "@/lib/db-types";
 
 type CsvRow=string[];
-type MetricRow={date:string;contents:number;views:number};
+type MetricRow={date:string;clientName:string;contents:number;views:number};
 type WorkbookSheet={name:string;rows:CsvRow[]};
 const decoder=new TextDecoder();
 function zipEntry(bytes:Buffer,wanted:string){
@@ -41,58 +41,59 @@ function parseWorkbook(bytes:Buffer):WorkbookSheet[]{
 const normalize=(value:string)=>value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
 function reportDate(value:string){const google=value.match(/^Date\((\d{4}),(\d{1,2}),(\d{1,2})\)$/);if(google)return parseReportDate(`${google[3]}/${Number(google[2])+1}/${google[1]}`);return parseReportDate(value)}
 function number(value:string){const direct=Number(value.trim());if(Number.isSafeInteger(direct)&&direct>=0)return direct;const digits=Number(value.replace(/[^\d-]/g,""));return Number.isSafeInteger(digits)&&digits>=0?digits:0}
-function parseKpiRows(rows:CsvRow[],dmName:string):MetricRow[]{
-  let viewsColumn=-1,contentsColumn=-1,dateColumn=-1;
-  for(let rowIndex=0;rowIndex<Math.min(rows.length,30);rowIndex++){
-    const row=rows[rowIndex]??[];
-    for(let column=0;column<row.length;column++){
-      const header=normalize(row[column]??"");
-      if(viewsColumn<0&&["views","view","tayangan"].includes(header))viewsColumn=column;
-      if(contentsColumn<0&&["jumlahupload","jumlahkonten","konten"].includes(header))contentsColumn=column;
-      if(dateColumn<0&&["tanggal","date"].includes(header))dateColumn=column;
+function parseKpiRows(rows:CsvRow[],dmName:string,clients:{name:string}[]):MetricRow[]{
+  const clientByName=new Map(clients.map(client=>[normalize(client.name),client.name]));
+  const headers=rows.flatMap((row,index)=>{
+    const columns={date:-1,views:-1,contents:-1};
+    row.forEach((value,column)=>{const header=normalize(value);if(columns.date<0&&["tanggal","date"].includes(header))columns.date=column;if(columns.views<0&&["views","view","tayangan"].includes(header))columns.views=column;if(columns.contents<0&&["jumlahupload","jumlahkonten","konten"].includes(header))columns.contents=column});
+    if(columns.date<0||columns.views<0)return[];
+    if(columns.contents<0)columns.contents=5;
+    return[{index,columns}];
+  });
+  const records=new Map<string,MetricRow>();
+  for(let section=0;section<headers.length;section++){
+    const header=headers[section],end=headers[section+1]?.index??rows.length;
+    let clientName:string|undefined;
+    // Each client performance block is titled in one of the rows immediately
+    // above its date/views header (including merged cells in Google Sheets).
+    for(let offset=0;offset<=5&&!clientName;offset++){
+      const row=rows[header.index-offset]??[];
+      for(const value of row){const candidate=clientByName.get(normalize(value??""));if(candidate){clientName=candidate;break}}
+    }
+    if(!clientName)throw new Error(`Nama client untuk blok performa di tab ${dmName} tidak cocok dengan client yang ditugaskan pada DM ini.`);
+    for(const row of rows.slice(header.index+1,end)){
+      const date=reportDate(row[header.columns.date]??"");if(!date)continue;
+      records.set(`${normalize(clientName)}:${date}`,{date,clientName,contents:number(row[header.columns.contents]??""),views:number(row[header.columns.views]??"")});
     }
   }
-  // This workbook's table is fixed at B=Date, C=Views, F=Jumlah Upload.
-  // Keep that known layout as a fallback if Google changes the header cell representation.
-  if(dateColumn<0)dateColumn=1;
-  if(viewsColumn<0)viewsColumn=2;
-  if(contentsColumn<0)contentsColumn=5;
-  // Some tabs export dates differently (or move the header row). Find the
-  // column with the most parseable dates, preferring the declared date column.
-  const dateScores=rows.reduce<number[]>((scores,row)=>{
-    row.forEach((value,index)=>{if(reportDate(value))scores[index]=(scores[index]??0)+1});return scores;
-  },[]);
-  const bestDateColumn=dateScores.reduce((best,count,index)=>count>(dateScores[best]??0)?index:best,dateColumn);
-  if((dateScores[bestDateColumn]??0)>0)dateColumn=bestDateColumn;
-  const records=new Map<string,MetricRow>();
-  // Do not trust the detected header row as a hard boundary; weekly subtotal
-  // rows and blank spacer rows are safely ignored below.
-  for(const row of rows){
-    const date=reportDate(row[dateColumn]??""),marker=(row[0]??"").trim();
-    if(!date||/^total\s+(week|minggu)/i.test(marker))continue;
-    records.set(date,{date,contents:number(row[contentsColumn]??""),views:number(row[viewsColumn]??"")});
-  }
-  if(records.size)return[...records.values()].sort((a,b)=>a.date.localeCompare(b.date));
-  throw new Error(`Tanggal tidak terbaca pada tab ${dmName}; format yang dibutuhkan: tanggal kolom B, Views kolom C, Jumlah Upload kolom F.`);
+  if(records.size)return[...records.values()].sort((a,b)=>a.date.localeCompare(b.date)||a.clientName.localeCompare(b.clientName,"id"));
+  throw new Error(`Tanggal tidak terbaca pada tab ${dmName}; setiap blok client perlu kolom Tanggal, Views, dan Jumlah Upload.`);
 }
 function sheetId(url:string){const parsed=new URL(url);if(parsed.protocol!=="https:"||parsed.hostname!=="docs.google.com")throw new Error("Link harus berasal dari Google Sheets.");const match=parsed.pathname.match(/^\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);if(!match)throw new Error("Format link spreadsheet tidak valid.");return match[1]}
 type SourceMember={dm_team_member_id:number;full_name:string;spreadsheet_url:string};
 async function syncMember(dm:SourceMember,sheets:WorkbookSheet[]){
   const sheet=sheets.find(item=>normalize(item.name)===normalize(dm.full_name));
   if(!sheet)throw new Error(`Tab “${dm.full_name}” tidak ada. Tab yang ditemukan: ${sheets.map(item=>item.name).join(", ")}.`);
-  const records=parseKpiRows(sheet.rows,dm.full_name),month=records.at(-1)?.date.slice(0,7);
-  if(!month)throw new Error(`Bulan tidak terbaca pada tab ${dm.full_name}.`);
   const sourceTitle=`Performa spreadsheet · ${dm.full_name}`,db=getDb();let created=0,updated=0;
+  const[assignedClients]=await db.execute<(RowDataPacket&{agency_client_id:number|string|bigint;client_name:string;client_type:string})[]>("SELECT c.id AS agency_client_id,c.client_name,c.client_type FROM dm_client_assignments a JOIN agency_clients c ON c.id=a.agency_client_id WHERE a.dm_team_member_id=? ORDER BY c.client_name",[dm.dm_team_member_id]);
+  const records=parseKpiRows(sheet.rows,dm.full_name,assignedClients.map(client=>({name:client.client_name}))),month=records.at(-1)?.date.slice(0,7);
+  if(!month)throw new Error(`Bulan tidak terbaca pada tab ${dm.full_name}.`);
+  const clientsByName=new Map(assignedClients.map(client=>[normalize(client.client_name),{id:Number(client.agency_client_id),name:client.client_name,type:client.client_type}]));
+  const clientMetrics=records.map(item=>{const client=clientsByName.get(normalize(item.clientName));if(!client)throw new Error(`Client “${item.clientName}” di tab ${dm.full_name} tidak cocok dengan pasangan client aktif di aplikasi.`);return{...item,client}});
   const updateRows=async()=>db.transaction(async tx=>{
     let transactionCreated=0,transactionUpdated=0;
-    for(const item of records){const week=monthWeekStartForDate(item.date)??item.date;const[daily]=await tx.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='daily' AND dm_team_member_id=? AND agency_client_id IS NULL AND activity_date=? ORDER BY id FOR UPDATE",[dm.dm_team_member_id,item.date]);
-      if(daily[0]){await tx.execute("UPDATE team_activity_entries SET title=?,client_name=NULL,client_type=NULL,contents=?,video_views=?,week_start=? WHERE id=?",[sourceTitle,item.contents,item.views,week,daily[0].id]);transactionUpdated++}
-      else{await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,dm_team_member_id,dm_person) VALUES ('dm','dm_client',?,?,?, 'daily', ?,?,0,0,0,0,0,?,?)",[sourceTitle,item.date,week,item.contents,item.views,dm.dm_team_member_id,dm.full_name]);transactionCreated++}
+    for(const item of clientMetrics){const week=monthWeekStartForDate(item.date)??item.date,title=`${sourceTitle} · ${item.client.name}`;const[daily]=await tx.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='daily' AND dm_team_member_id=? AND agency_client_id=? AND activity_date=? ORDER BY id FOR UPDATE",[dm.dm_team_member_id,item.client.id,item.date]);
+      if(daily[0]){await tx.execute("UPDATE team_activity_entries SET title=?,client_name=?,client_type=?,contents=?,video_views=?,week_start=? WHERE id=?",[title,item.client.name,item.client.type,item.contents,item.views,week,daily[0].id]);transactionUpdated++}
+      else{await tx.execute("INSERT INTO team_activity_entries (scope,entry_type,title,client_name,client_type,agency_client_id,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,new_clients,strategies,visits,dm_team_member_id,dm_person) VALUES ('dm','dm_client',?,?,?,?,?,?, 'daily', ?,?,0,0,0,0,0,?,?)",[title,item.client.name,item.client.type,item.client.id,item.date,week,item.contents,item.views,dm.dm_team_member_id,dm.full_name]);transactionCreated++}
       for(const duplicate of daily.slice(1)){await tx.execute("UPDATE team_activity_entries SET contents=0,video_views=0 WHERE id=?",[duplicate.id]);transactionUpdated++}
     }
     const monthStart=`${month}-01`,nextMonth=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),1)).toISOString().slice(0,10);
-    const dates=records.map(item=>item.date),placeholders=dates.map(()=>"?").join(","),[stale]=await tx.execute<(RowDataPacket&{id:number})[]>(`SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='daily' AND dm_team_member_id=? AND title=? AND activity_date>=? AND activity_date<?${dates.length?` AND activity_date NOT IN (${placeholders})`:""} FOR UPDATE`,[dm.dm_team_member_id,sourceTitle,monthStart,nextMonth,...dates]);
+    const recordsByClient=new Map<number,string[]>();for(const item of clientMetrics){const dates=recordsByClient.get(item.client.id)??[];dates.push(item.date);recordsByClient.set(item.client.id,dates)}
+    const stale: (RowDataPacket&{id:number})[]=[];
+    for(const client of assignedClients){const id=Number(client.agency_client_id),dates=recordsByClient.get(id)??[],placeholders=dates.map(()=>"?").join(","),[rows]=await tx.execute<(RowDataPacket&{id:number})[]>(`SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='daily' AND dm_team_member_id=? AND agency_client_id=? AND title LIKE ? AND activity_date>=? AND activity_date<?${dates.length?` AND activity_date NOT IN (${placeholders})`:""} FOR UPDATE`,[dm.dm_team_member_id,id,`${sourceTitle} · %`,monthStart,nextMonth,...dates]);stale.push(...rows)}
     for(const old of stale)await tx.execute("UPDATE team_activity_entries SET contents=0,video_views=0 WHERE id=?",[old.id]);
+    const[oldAggregateRows]=await tx.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='daily' AND dm_team_member_id=? AND agency_client_id IS NULL AND title=? AND activity_date>=? AND activity_date<? FOR UPDATE",[dm.dm_team_member_id,sourceTitle,monthStart,nextMonth]);
+    for(const old of oldAggregateRows)await tx.execute("UPDATE team_activity_entries SET contents=0,video_views=0 WHERE id=?",[old.id]);
     const[oldImportedWeekly]=await tx.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='weekly' AND dm_team_member_id=? AND title LIKE ? FOR UPDATE",[dm.dm_team_member_id,`Performa spreadsheet · ${dm.full_name} · %`]);
     for(const old of oldImportedWeekly)await tx.execute("UPDATE team_activity_entries SET contents=0,video_views=0 WHERE id=?",[old.id]);
     return{created:transactionCreated,updated:transactionUpdated};
@@ -108,7 +109,7 @@ async function syncMember(dm:SourceMember,sheets:WorkbookSheet[]){
       await new Promise(resolve=>setTimeout(resolve,150*(attempt+1)));
     }
   }
-  const status=`OK · ${records.length} tanggal · konten dan views dari spreadsheet · ${created} baru, ${updated} ditimpa`;await db.execute("UPDATE dm_spreadsheet_sources SET last_synced_at=CURRENT_TIMESTAMP,last_sync_status=? WHERE dm_team_member_id=?",[status,dm.dm_team_member_id]);return{ok:true,dm:dm.full_name,dmId:Number(dm.dm_team_member_id),total:records.length,created,updated};
+  const status=`OK · ${clientMetrics.length} baris tanggal per client · ${created} baru, ${updated} ditimpa`;await db.execute("UPDATE dm_spreadsheet_sources SET last_synced_at=CURRENT_TIMESTAMP,last_sync_status=? WHERE dm_team_member_id=?",[status,dm.dm_team_member_id]);return{ok:true,dm:dm.full_name,dmId:Number(dm.dm_team_member_id),total:clientMetrics.length,created,updated};
 }
 async function setError(dm:SourceMember,error:string){await getDb().execute("UPDATE dm_spreadsheet_sources SET last_synced_at=CURRENT_TIMESTAMP,last_sync_status=? WHERE dm_team_member_id=?",[error.slice(0,500),dm.dm_team_member_id]).catch(()=>undefined);return{ok:false,dm:dm.full_name,dmId:Number(dm.dm_team_member_id),error}}
 
