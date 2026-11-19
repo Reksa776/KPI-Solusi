@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type PointerEvent } from "react";
 import Link from "next/link";
 import KpiExcelExport from "@/components/kpi-excel-export";
 import DmDateRangePicker from "@/components/dm-date-range-picker";
+import { getDmMonthWeekEnd } from "@/lib/dm-weeks";
 
 export type DmOverviewRow = { id:number|null; name:string; clients:number; contents:number; videoViews:number; tiktokSales:number; shopeeSales:number; score:number };
 export type DmTrendPoint = { week:string; dm:string; contents:number; videoViews:number; sales:number; frequency?:"daily"|"weekly"|"mixed" };
@@ -15,7 +16,7 @@ const number=(value:number)=>value.toLocaleString("id-ID");
 const money=(value:number)=>`Rp ${value.toLocaleString("id-ID")}`;
 const scoreLabel=(value:number)=>value.toLocaleString("id-ID",{maximumFractionDigits:1});
 const dateLabel=(value:string)=>new Intl.DateTimeFormat("id-ID",{day:"numeric",month:"short"}).format(new Date(`${value}T12:00:00`));
-const weekRangeLabel=(value:string|null)=>{if(!value)return "";const [year,month,day]=value.split("-").map(Number),end=Math.min(day+6,new Date(Date.UTC(year,month,0)).getUTCDate());return `${day}–${end} ${new Intl.DateTimeFormat("id-ID",{month:"short",timeZone:"UTC"}).format(new Date(Date.UTC(year,month-1,day)))}`};
+const weekRangeLabel=(value:string|null)=>{if(!value)return "";const [year,month,day]=value.split("-").map(Number),end=Number((getDmMonthWeekEnd(value)??value).slice(8,10));return `${day}–${end} ${new Intl.DateTimeFormat("id-ID",{month:"short",timeZone:"UTC"}).format(new Date(Date.UTC(year,month-1,day)))}`};
 const gradeForScore=(score:number)=>score>=88?"A":score>=77?"B":score>=70.5?"C":"Buruk";
 
 export default function DmKpiOverview({ month, weeklyMonth, rangeMode="month", rangeFrom, rangeTo, rows, trends, dailyTrends=[], selectedDm, periods, weeklyPeriods, performanceRows, weeklyDmRows, currentWeek, contentTargets = [], publicMode = false }: { month:string; weeklyMonth:string; rangeMode?:"month"|"7d"|"custom"; rangeFrom:string; rangeTo:string; rows:DmOverviewRow[]; trends:DmTrendPoint[]; dailyTrends?:DmTrendPoint[]; selectedDm?:string; periods:(string|null)[]; weeklyPeriods:(string|null)[]; performanceRows:DmClientPerformanceRow[]; weeklyDmRows:DmWeeklyRow[]; currentWeek:string; contentTargets?:DmContentTargetRow[]; publicMode?:boolean }) {

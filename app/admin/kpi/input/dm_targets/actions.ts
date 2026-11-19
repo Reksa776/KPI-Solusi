@@ -18,7 +18,7 @@ export async function saveDmContentTargets(form: FormData) {
   const clientId = Number(value(form, "agency_client_id"));
   const weekStarts = form.getAll("week_start").map(item => String(item).trim());
   const weeklyTargets = form.getAll("weekly_target").map(item => Number(String(item)));
-  const expectedWeeks = Array.from({ length: 5 }, (_, index) => getDmMonthWeekStart(month, index + 1)).filter((start): start is string => Boolean(start));
+  const expectedWeeks = Array.from({ length: 6 }, (_, index) => getDmMonthWeekStart(month, index + 1)).filter((start): start is string => Boolean(start));
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || !Number.isSafeInteger(dmId) || dmId < 1 || !Number.isSafeInteger(clientId) || clientId < 1 || weekStarts.length !== expectedWeeks.length || weeklyTargets.length !== expectedWeeks.length || weekStarts.some((start, index) => start !== expectedWeeks[index] || dmMonthWeekFromStart(start)?.month !== month) || weeklyTargets.some(target => !Number.isSafeInteger(target) || target < 0 || target > 4_294_967_295)) {
     redirect(`${path}?month=${encodeURIComponent(month)}&error=invalid`);
   }

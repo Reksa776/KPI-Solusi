@@ -11,7 +11,7 @@ import LiveSearchFilter from "@/components/live-search-filter";
 import ConfirmDeleteButton from "@/components/confirm-delete-button";
 import { getAdminSessionUser, verifyAdminSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
-import { getDmMonthWeekStart, dmMonthWeekFromStart, dmMonthWeekStartForEntry } from "@/lib/dm-weeks";
+import { getDmMonthWeekStart, getDmMonthWeekEnd, dmMonthWeekFromStart, dmMonthWeekStartForEntry } from "@/lib/dm-weeks";
 import { deleteDmClientAssignment, saveDmClientAssignment } from "./actions";
 import { deleteTeamEntry, saveTeamEntry, saveDmClientBatch, saveDmWeeklyContent } from "../../actions";
 
@@ -24,9 +24,9 @@ type Entry=RowDataPacket&{id:number;title:string;client_name:string|null;client_
 const today=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 const dateValue=(value:string|Date)=>typeof value==="string"?value.slice(0,10):new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(value);
 const number=(value:unknown)=>Number(value??0).toLocaleString("id-ID");
-function weekLabel(value:string|Date){const date=dateValue(value),month=date.slice(0,7);let week=1;for(let i=1;i<=5;i++){const start=getDmMonthWeekStart(month,i);if(start&&start<=date)week=i}return `Minggu ${week}`}
+function weekLabel(value:string|Date){const date=dateValue(value),month=date.slice(0,7);let week=1;for(let i=1;i<=6;i++){const start=getDmMonthWeekStart(month,i);if(start&&start<=date)week=i}return `Minggu ${week}`}
 function detailHref(dmId:number,clientId:number){return `/admin/kpi/input/dm_client?dm_id=${dmId}&client_id=${clientId}`}
-function periodLabel(value:string){const period=dmMonthWeekFromStart(value);if(!period)return value;const [year,month,day]=value.split("-").map(Number),end=Math.min(day+6,new Date(Date.UTC(year,month,0)).getUTCDate());return `${new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(`${period.month}-01T12:00:00Z`))} · Minggu ${period.week} (${day}–${end})`}
+function periodLabel(value:string){const period=dmMonthWeekFromStart(value);if(!period)return value;const [year,month,day]=value.split("-").map(Number),end=Number((getDmMonthWeekEnd(value)??value).slice(8,10));return `${new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(`${period.month}-01T12:00:00Z`))} · Minggu ${period.week} (${day}–${end})`}
 
 export default async function DmClientPage({searchParams}:{searchParams:Promise<Query>}){
   if(!(await verifyAdminSession()))redirect("/admin/login");

@@ -2,14 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { getMonthWeekStart, monthWeekFromStart } from "@/lib/dae-weeks";
-import { getDmMonthWeekStart, dmMonthWeekFromStart } from "@/lib/dm-weeks";
+import { getDmMonthWeekStart, getDmMonthWeekEnd, dmMonthWeekFromStart } from "@/lib/dm-weeks";
 
 function currentMonth() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit" }).format(new Date());
 }
 function dmWeekRange(value: string) {
-  const [year, month, day] = value.split("-").map(Number), lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return `${day}–${Math.min(day + 6, lastDay)} ${new Intl.DateTimeFormat("id-ID", { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(year, month - 1, day)))}`;
+  const end = getDmMonthWeekEnd(value) ?? value;
+  const [year, month, day] = value.split("-").map(Number), endDay = Number(end.slice(8, 10));
+  return `${day}–${endDay} ${new Intl.DateTimeFormat("id-ID", { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(year, month - 1, day)))}`;
 }
 
 export default function DaeMonthWeekPicker({ name = "week_start", initialWeekStart = "", periods, onChange, weekMode = "dae" }: { name?: string; initialWeekStart?: string; periods?: string[]; onChange?: (value: string) => void; weekMode?: "dae" | "dm" }) {
@@ -19,7 +20,7 @@ export default function DaeMonthWeekPicker({ name = "week_start", initialWeekSta
   const initialParsed = initialWeekStart ? parseWeekStart(initialWeekStart) : null;
   const [month, setMonth] = useState(initialParsed?.month ?? (initialWeekStart ? initialWeekStart.slice(0, 7) : currentMonth()));
   const [week, setWeek] = useState(String(initialParsed?.week ?? 1));
-  const choices = [1, 2, 3, 4, 5].map(number => { const value = getWeekStart(month, number) ?? ""; return { value, number, label: `Minggu ${number}${weekMode === "dm" && value ? ` · ${dmWeekRange(value)}` : ""}`, disabled: !value }; });
+  const choices = Array.from({ length: weekMode === "dm" ? 6 : 5 }, (_, index) => index + 1).map(number => { const value = getWeekStart(month, number) ?? ""; return { value, number, label: `Minggu ${number}${weekMode === "dm" && value ? ` · ${dmWeekRange(value)}` : ""}`, disabled: !value }; });
   const selected = choices.find(item => String(item.number) === week);
   const months = allowed ? [...new Set(allowed.map(value => value.slice(0, 7)))].sort().reverse() : undefined;
   function changeMonth(nextMonth: string) {
@@ -35,7 +36,7 @@ export default function DaeMonthWeekPicker({ name = "week_start", initialWeekSta
   return <div className="form-grid dae-month-week-picker">
     <label>Bulan laporan {months ? <select value={months.includes(month) ? month : months[0]} onChange={event => changeMonth(event.target.value)}>{months.map(value => <option key={value} value={value}>{new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}-01T12:00:00Z`))}</option>)}</select> : <input type="month" value={month} onChange={event => changeMonth(event.target.value)} required />}</label>
     <label>Minggu ke<select value={week} onChange={event => changeWeek(event.target.value)} required><option value="" disabled>Pilih minggu</option>{choices.map(item => <option key={item.number} value={item.number} disabled={item.disabled}>{item.label}{item.disabled ? " · Tidak ada periode dalam bulan ini" : ""}</option>)}</select></label>
-    {weekMode === "dm" && <small className="admin-footnote dae-month-week-picker-note">Minggu mengikuti kalender Senin–Minggu. Hitungan dimulai dari Senin pertama; tanggal sebelum itu tetap masuk Minggu 1.</small>}
+    {weekMode === "dm" && <small className="admin-footnote dae-month-week-picker-note">Minggu mengikuti baris kalender Minggu–Sabtu. Baris pertama dan terakhir bisa berupa minggu parsial.</small>}
     <input type="hidden" name="period_month" value={month}/>
     <input type="hidden" name={name} value={selected?.value ?? ""}/>
   </div>;

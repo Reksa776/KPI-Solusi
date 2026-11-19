@@ -158,11 +158,11 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     for(const row of rows)row.score=50*row.contents/max.contents+30*row.videoViews/max.videoViews+20*(row.tiktokSales+row.shopeeSales)/max.sales;
     rows.sort((a,b)=>b.score-a.score||b.videoViews-a.videoViews||a.name.localeCompare(b.name,"id"));
     const selectedDm=rows.some(row=>row.name===query.dm)?query.dm:undefined;
-    const periods=Array.from({length:5},(_,index)=>getDmMonthWeekStart(month,index+1));
+    const periods=Array.from({length:6},(_,index)=>getDmMonthWeekStart(month,index+1)).filter((value):value is string=>Boolean(value));
     const weeklyMonth=/^\d{4}-(0[1-9]|1[0-2])$/.test(query.weeklyMonth??"")?query.weeklyMonth!:month;
     const currentDate=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
     const currentWeek=dmMonthWeekStartForDate(currentDate)??"";
-    const weeklyPeriods=Array.from({length:5},(_,index)=>getDmMonthWeekStart(weeklyMonth,index+1));
+    const weeklyPeriods=Array.from({length:6},(_,index)=>getDmMonthWeekStart(weeklyMonth,index+1)).filter((value):value is string=>Boolean(value));
     const weeklyEntries=weeklyMonth===month?dmEntries:(await db.execute<DmEntry[]>("SELECT m.id AS dm_id,m.full_name AS dm_name,e.client_name,e.client_type,e.activity_date,e.input_frequency,e.contents,e.video_views,e.tiktok_sales,e.shopee_sales FROM team_activity_entries e JOIN dm_team_members m ON m.id=e.dm_team_member_id WHERE e.scope='dm' AND e.entry_type='dm_client' AND e.activity_date>=? AND e.activity_date<DATE_ADD(?,INTERVAL 1 MONTH) ORDER BY e.activity_date,e.id", [`${weeklyMonth}-01`, `${weeklyMonth}-01`]))[0];
     const periodForMonthDate=(date:string|Date,monthKey:string,monthPeriods:(string|null)[])=>{const day=dateValue(date);if(day.slice(0,7)!==monthKey)return null;const starts=monthPeriods.filter((period):period is string=>Boolean(period));return [...starts].reverse().find(start=>start<=day)??starts[0]??null};
     const trendMap=new Map<string,DmTrendPoint>();

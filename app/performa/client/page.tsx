@@ -21,7 +21,7 @@ export default async function PublicClientOverviewPage({ searchParams }: { searc
   ]);
   const assignments = assignmentRows.map(row => ({ ...row, client_id: Number(row.client_id), dm_id: Number(row.dm_id) }));
   const reports = reportRows.map(row => ({ ...row, agency_client_id: Number(row.agency_client_id), dm_team_member_id: Number(row.dm_team_member_id) }));
-  const monthPeriods = Array.from({ length: 5 }, (_, index) => getDmMonthWeekStart(month, index + 1));
+  const monthPeriods = Array.from({ length: 6 }, (_, index) => getDmMonthWeekStart(month, index + 1)).filter((value): value is string => Boolean(value));
   const clients: ClientOverviewItem[] = assignments.map(assignment => {
     const weekly = new Map<string, ClientWeekPoint>();
     for (const row of reports) {
@@ -42,7 +42,7 @@ export default async function PublicClientOverviewPage({ searchParams }: { searc
   });
   const requestedClientId = Number(query.client), requestedDmId = Number(query.dm);
   const active = clients.find(client => client.id === requestedClientId && client.dmId === requestedDmId) ?? clients[0];
-  return <PublicPerformanceShell active="client" eyebrow={`Overview Client · ${month}`} title="Overview Client" description="Pilih client untuk melihat nama DM, grafik, dan rekap performa mingguan mengikuti kalender Senin–Minggu.">
+  return <PublicPerformanceShell active="client" eyebrow={`Overview Client · ${month}`} title="Overview Client" description="Pilih client untuk melihat nama DM, grafik, dan rekap performa mingguan mengikuti baris kalender Minggu–Sabtu.">
     <div className="public-client-overview-filters"><form action="/performa/client" method="get">{active && <><input type="hidden" name="dm" value={active.dmId}/><input type="hidden" name="client" value={active.id}/></>}<label>Periode laporan<input type="month" name="month" defaultValue={month}/></label><button type="submit">Tampilkan</button></form><div><small>Nama DM</small><b>{active?.dmName ?? "Belum ada data"}</b></div></div>
     <DmClientOverview publicMode month={month} dmId={active?.dmId ?? null} clientId={active?.id ?? null} clients={clients} dmName={active?.dmName ?? "Belum ada DM"}/>
   </PublicPerformanceShell>;

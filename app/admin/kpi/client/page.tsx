@@ -27,7 +27,7 @@ export default async function AdminClientOverviewPage({ searchParams }: { search
   ]);
   const assignments = assignmentRows.map(row => ({ ...row, client_id: Number(row.client_id), dm_id: Number(row.dm_id) }));
   const reports = reportRows.map(row => ({ ...row, agency_client_id: Number(row.agency_client_id), dm_team_member_id: Number(row.dm_team_member_id) }));
-  const monthPeriods = Array.from({ length: 5 }, (_, index) => getDmMonthWeekStart(month, index + 1));
+  const monthPeriods = Array.from({ length: 6 }, (_, index) => getDmMonthWeekStart(month, index + 1)).filter((value): value is string => Boolean(value));
   const clients: ClientOverviewItem[] = assignments.map(assignment => {
     const weekly = new Map<string, ClientWeekPoint>();
     for (const row of reports) {
