@@ -2,23 +2,30 @@
 
 import { useMemo, useState } from "react";
 import { getMonthWeekStart, monthWeekFromStart } from "@/lib/dae-weeks";
+import { getDmMonthWeekStart, dmMonthWeekFromStart } from "@/lib/dm-weeks";
 
 function currentMonth() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit" }).format(new Date());
 }
+function dmWeekRange(value: string) {
+  const [year, month, day] = value.split("-").map(Number), lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${day}–${Math.min(day + 6, lastDay)} ${new Intl.DateTimeFormat("id-ID", { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(year, month - 1, day)))}`;
+}
 
-export default function DaeMonthWeekPicker({ name = "week_start", initialWeekStart = "", periods, onChange }: { name?: string; initialWeekStart?: string; periods?: string[]; onChange?: (value: string) => void }) {
+export default function DaeMonthWeekPicker({ name = "week_start", initialWeekStart = "", periods, onChange, weekMode = "dae" }: { name?: string; initialWeekStart?: string; periods?: string[]; onChange?: (value: string) => void; weekMode?: "dae" | "dm" }) {
   const allowed = useMemo(() => periods ? [...new Set(periods)].sort() : undefined, [periods]);
-  const initialParsed = initialWeekStart ? monthWeekFromStart(initialWeekStart) : null;
+  const getWeekStart = weekMode === "dm" ? getDmMonthWeekStart : getMonthWeekStart;
+  const parseWeekStart = weekMode === "dm" ? dmMonthWeekFromStart : monthWeekFromStart;
+  const initialParsed = initialWeekStart ? parseWeekStart(initialWeekStart) : null;
   const [month, setMonth] = useState(initialParsed?.month ?? (initialWeekStart ? initialWeekStart.slice(0, 7) : currentMonth()));
   const [week, setWeek] = useState(String(initialParsed?.week ?? 1));
-  const choices = [1, 2, 3, 4, 5].map(number => ({ value: getMonthWeekStart(month, number) ?? "", number, label: `Minggu ${number}`, disabled: !getMonthWeekStart(month, number) }));
+  const choices = [1, 2, 3, 4, 5].map(number => { const value = getWeekStart(month, number) ?? ""; return { value, number, label: `Minggu ${number}${weekMode === "dm" && value ? ` · ${dmWeekRange(value)}` : ""}`, disabled: !value }; });
   const selected = choices.find(item => String(item.number) === week);
   const months = allowed ? [...new Set(allowed.map(value => value.slice(0, 7)))].sort().reverse() : undefined;
   function changeMonth(nextMonth: string) {
     setMonth(nextMonth);
     setWeek("1");
-    onChange?.(getMonthWeekStart(nextMonth, 1) ?? "");
+    onChange?.(getWeekStart(nextMonth, 1) ?? "");
   }
   function changeWeek(nextWeek: string) {
     setWeek(nextWeek);

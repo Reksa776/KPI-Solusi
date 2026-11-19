@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import type { RowDataPacket } from "@/lib/db-types";
 import { verifyAdminScope } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
-import { monthWeekStartForDate } from "@/lib/dae-weeks";
+import { dmMonthWeekStartForDate } from "@/lib/dm-weeks";
 import { parseReportDate } from "@/lib/report-date";
 import { parseDmPerformanceExcel, type DmExcelCoverage, type DmExcelMetric } from "@/lib/dm-performance-xlsx";
 
@@ -86,7 +86,7 @@ async function commitRows(input: unknown) {
       }
     }
     for (const row of metrics) {
-      const dmName = dmNames.get(row.dmId)!, client = assignments.get(`${row.dmId}:${row.clientId}`)!, weekStart = monthWeekStartForDate(row.date) ?? row.date;
+      const dmName = dmNames.get(row.dmId)!, client = assignments.get(`${row.dmId}:${row.clientId}`)!, weekStart = dmMonthWeekStartForDate(row.date) ?? row.date;
       const title = `Performa Excel · ${dmName} · ${client.name}`;
       const [existing] = await tx.execute<(RowDataPacket & { id: number })[]>("SELECT id FROM team_activity_entries WHERE entry_type='dm_client' AND input_frequency='daily' AND dm_team_member_id=? AND agency_client_id=? AND activity_date=? ORDER BY id FOR UPDATE", [row.dmId, row.clientId, row.date]);
       if (existing[0]) {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import DaeMonthWeekPicker from "@/components/dae-month-week-picker";
-import { monthWeekStartForDate } from "@/lib/dae-weeks";
+import { dmMonthWeekStartForDate } from "@/lib/dm-weeks";
 
 export type DmInputMode = "daily" | "weekly";
 
@@ -26,14 +26,14 @@ export default function DmInputPeriod({ initialWeekStart, initialDate, initialMo
     </div>
     <input type="hidden" name="input_mode" value={mode}/>
     {mode === "weekly" ? <>
-      <DaeMonthWeekPicker initialWeekStart={weekStart} onChange={value => setWeekStart(value)}/>
+      <DaeMonthWeekPicker weekMode="dm" initialWeekStart={weekStart} onChange={value => setWeekStart(value)}/>
       <input type="hidden" name="activity_date" value={weekStart}/>
       <p className="form-hint">Satu catatan untuk tiap client pada minggu yang dipilih.</p>
     </> : <>
       <div className="form-grid">
         <label>Tanggal<input type="date" name="activity_date" value={date} onChange={event => setDate(event.target.value)} required/></label>
       </div>
-      <input type="hidden" name="week_start" value={monthWeekStartForDate(date) ?? ""}/>
+      <input type="hidden" name="week_start" value={dmMonthWeekStartForDate(date) ?? ""}/>
       <p className="form-hint">Input harian akan masuk ke rekap minggu sesuai tanggalnya.</p>
     </>}
   </section>;

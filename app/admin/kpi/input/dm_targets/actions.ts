@@ -5,10 +5,11 @@ import { redirect } from "next/navigation";
 import type { RowDataPacket } from "@/lib/db-types";
 import { getAdminSessionUser, verifyAdminScope } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
-import { getMonthWeekStart, monthWeekFromStart } from "@/lib/dae-weeks";
+import { getDmMonthWeekStart, dmMonthWeekFromStart, dmMonthWeekStartForEntry } from "@/lib/dm-weeks";
 
 const path = "/admin/kpi/input/dm_targets";
 const value = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
+const dateValue = (input: string|Date) => typeof input === "string" ? input.slice(0,10) : new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(input);
 
 export async function saveDmContentTargets(form: FormData) {
   if (!(await verifyAdminScope("dm"))) redirect("/admin/kpi");
@@ -17,15 +18,17 @@ export async function saveDmContentTargets(form: FormData) {
   const clientId = Number(value(form, "agency_client_id"));
   const weekStarts = form.getAll("week_start").map(item => String(item).trim());
   const weeklyTargets = form.getAll("weekly_target").map(item => Number(String(item)));
-  const expectedWeeks = Array.from({ length: 5 }, (_, index) => getMonthWeekStart(month, index + 1)).filter((start): start is string => Boolean(start));
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || !Number.isSafeInteger(dmId) || dmId < 1 || !Number.isSafeInteger(clientId) || clientId < 1 || weekStarts.length !== expectedWeeks.length || weeklyTargets.length !== expectedWeeks.length || weekStarts.some((start, index) => start !== expectedWeeks[index] || monthWeekFromStart(start)?.month !== month) || weeklyTargets.some(target => !Number.isSafeInteger(target) || target < 0 || target > 4_294_967_295)) {
+  const expectedWeeks = Array.from({ length: 5 }, (_, index) => getDmMonthWeekStart(month, index + 1)).filter((start): start is string => Boolean(start));
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || !Number.isSafeInteger(dmId) || dmId < 1 || !Number.isSafeInteger(clientId) || clientId < 1 || weekStarts.length !== expectedWeeks.length || weeklyTargets.length !== expectedWeeks.length || weekStarts.some((start, index) => start !== expectedWeeks[index] || dmMonthWeekFromStart(start)?.month !== month) || weeklyTargets.some(target => !Number.isSafeInteger(target) || target < 0 || target > 4_294_967_295)) {
     redirect(`${path}?month=${encodeURIComponent(month)}&error=invalid`);
   }
 
   const db = getDb();
-  const [assignments] = await db.execute<(RowDataPacket & { dm_team_member_id: number })[]>("SELECT dm_team_member_id FROM dm_client_assignments WHERE dm_team_member_id=? AND agency_client_id=? LIMIT 1", [dmId, clientId]);    if (!assignments.length) redirect(`${path}?month=${month}&error=assignment`);
+  const [assignments] = await db.execute<(RowDataPacket & { dm_team_member_id: number })[]>("SELECT dm_team_member_id FROM dm_client_assignments WHERE dm_team_member_id=? AND agency_client_id=? LIMIT 1", [dmId, clientId]);
+  if (!assignments.length) redirect(`${path}?month=${month}&error=assignment`);
   const user = await getAdminSessionUser();
   await db.transaction(async tx => {
+    await tx.execute("DELETE FROM dm_content_targets WHERE dm_team_member_id=? AND agency_client_id=? AND week_start>=? AND week_start<DATE_ADD(?,INTERVAL 1 MONTH)", [dmId, clientId, `${month}-01`, `${month}-01`]);
     for (let index = 0; index < expectedWeeks.length; index++) {
       await tx.execute(
         "INSERT INTO dm_content_targets (dm_team_member_id,agency_client_id,week_start,target_contents,created_by) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE target_contents=VALUES(target_contents),created_by=VALUES(created_by)",
@@ -43,8 +46,9 @@ export async function saveDmContentTargets(form: FormData) {
 export async function deleteDmContentTarget(form:FormData) {
   if(!(await verifyAdminScope("dm")))redirect("/admin/kpi");
   const month=value(form,"period_month"),dmId=Number(value(form,"dm_team_member_id")),clientId=Number(value(form,"agency_client_id")),weekStart=value(form,"week_start");
-  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||!Number.isSafeInteger(dmId)||dmId<1||!Number.isSafeInteger(clientId)||clientId<1||monthWeekFromStart(weekStart)?.month!==month)redirect(`${path}?month=${encodeURIComponent(month)}&error=invalid`);
-  await getDb().execute("DELETE FROM dm_content_targets WHERE dm_team_member_id=? AND agency_client_id=? AND week_start=?",[dmId,clientId,weekStart]);
+  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||!Number.isSafeInteger(dmId)||dmId<1||!Number.isSafeInteger(clientId)||clientId<1||dmMonthWeekFromStart(weekStart)?.month!==month)redirect(`${path}?month=${encodeURIComponent(month)}&error=invalid`);
+  const db=getDb(),[rows]=await db.execute<(RowDataPacket&{week_start:string|Date})[]>("SELECT week_start FROM dm_content_targets WHERE dm_team_member_id=? AND agency_client_id=? AND week_start>=? AND week_start<DATE_ADD(?,INTERVAL 1 MONTH)",[dmId,clientId,`${month}-01`,`${month}-01`]);
+  for(const row of rows)if(dmMonthWeekStartForEntry(dateValue(row.week_start),"weekly")===weekStart)await db.execute("DELETE FROM dm_content_targets WHERE dm_team_member_id=? AND agency_client_id=? AND week_start=?",[dmId,clientId,dateValue(row.week_start)]);
   revalidatePath(path);revalidatePath("/admin/kpi");revalidatePath("/admin");revalidatePath("/admin/kpi/input/dm_client");revalidatePath("/performa/dm");
   redirect(`${path}?month=${month}&dm_id=${dmId}&client_id=${dmId}:${clientId}&deleted=1`);
 }

@@ -6,14 +6,14 @@ import AdminTopbar from "@/components/admin-topbar";
 import ConfirmDeleteButton from "@/components/confirm-delete-button";
 import { getAdminSessionUser, verifyAdminSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
-import { getMonthWeekStart, monthWeekStartForDate } from "@/lib/dae-weeks";
+import { getDmMonthWeekStart, dmMonthWeekStartForEntry, dmMonthWeekStartForDate } from "@/lib/dm-weeks";
 import { deleteDmContentTarget, saveDmContentTargets } from "./actions";
 
 export const metadata = { title: "Target Konten DM | Solusi Sejalan" };
 type Query = { month?: string; dm_id?: string; client_id?: string; saved?: string; deleted?:string; error?: string };
 type Assignment = RowDataPacket & { dm_team_member_id: number; agency_client_id: number; dm_name: string; client_name: string; client_type: string };
 type TargetRow = RowDataPacket & { dm_team_member_id: number; agency_client_id: number; target_contents: number | string; week_start: string | Date };
-type Report = RowDataPacket & { dm_team_member_id: number; agency_client_id: number; week_start: string | Date; input_frequency: string; contents: number | string };
+type Report = RowDataPacket & { dm_team_member_id: number; agency_client_id: number; activity_date: string | Date; input_frequency: string; contents: number | string };
 type Week = { index: number; start: string; planned: number; actual: number; carried: number; remaining: number; available: number };
 const todayMonth = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit" }).format(new Date());
 const dateValue = (value: string | Date) => typeof value === "string" ? value.slice(0, 10) : new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(value);
@@ -24,7 +24,7 @@ function getWeeks(month: string, targetByWeek: Map<string, number>, reportByWeek
   const weeks: Week[] = [];
   let carried = 0;
   for (let index = 0; index < 5; index++) {
-    const start = getMonthWeekStart(month, index + 1);
+    const start = getDmMonthWeekStart(month, index + 1);
     if (!start) continue;
     const planned = targetByWeek.get(start) ?? 0;
     const actual = reportByWeek.get(start) ?? 0;
@@ -46,8 +46,8 @@ export default async function DmContentTargetsPage({ searchParams }: { searchPar
   const db = getDb();
   const [[assignments], [targetRows], [reports]] = await Promise.all([
     db.execute<Assignment[]>("SELECT a.dm_team_member_id,a.agency_client_id,m.full_name AS dm_name,c.client_name,c.client_type FROM dm_client_assignments a JOIN dm_team_members m ON m.id=a.dm_team_member_id JOIN agency_clients c ON c.id=a.agency_client_id ORDER BY m.full_name,c.client_name"),
-    db.execute<TargetRow[]>("SELECT dm_team_member_id,agency_client_id,target_contents,week_start FROM dm_content_targets WHERE week_start>=? AND week_start<DATE_ADD(?,INTERVAL 1 MONTH)", [`${month}-01`, `${month}-01`]),
-    db.execute<Report[]>("SELECT dm_team_member_id,agency_client_id,week_start,input_frequency,SUM(contents) AS contents FROM team_activity_entries WHERE entry_type='dm_client' AND scope='dm' AND week_start>=? AND week_start<DATE_ADD(?,INTERVAL 1 MONTH) GROUP BY dm_team_member_id,agency_client_id,week_start,input_frequency", [`${month}-01`, `${month}-01`]),
+    db.execute<TargetRow[]>("SELECT dm_team_member_id,agency_client_id,target_contents,week_start FROM dm_content_targets WHERE week_start>=? AND week_start<DATE_ADD(?,INTERVAL 1 MONTH) ORDER BY week_start", [`${month}-01`, `${month}-01`]),
+    db.execute<Report[]>("SELECT dm_team_member_id,agency_client_id,activity_date,input_frequency,SUM(contents) AS contents FROM team_activity_entries WHERE entry_type='dm_client' AND scope='dm' AND activity_date>=? AND activity_date<DATE_ADD(?,INTERVAL 1 MONTH) GROUP BY dm_team_member_id,agency_client_id,activity_date,input_frequency", [`${month}-01`, `${month}-01`]),
   ]);
   const dmId = query.dm_id && Number.isSafeInteger(Number(query.dm_id)) ? Number(query.dm_id) : null;
   const selectedPair = query.client_id?.split(":").map(Number) ?? [];
@@ -55,19 +55,21 @@ export default async function DmContentTargetsPage({ searchParams }: { searchPar
   const selected = assignments.find(row => Number(row.dm_team_member_id) === (selectedPair.length === 2 ? selectedPair[0] : dmId) && Number(row.agency_client_id) === clientId);
   const targetMap = new Map<string, number>();
   for (const row of targetRows) {
-    const start = dateValue(row.week_start);
-    if (start.slice(0, 7) === month && monthWeekStartForDate(start) === start) targetMap.set(`${Number(row.dm_team_member_id)}:${Number(row.agency_client_id)}:${start}`, count(row.target_contents));
+    const start = dmMonthWeekStartForEntry(dateValue(row.week_start), "weekly");
+    if (start?.slice(0, 7) === month) targetMap.set(`${Number(row.dm_team_member_id)}:${Number(row.agency_client_id)}:${start}`, count(row.target_contents));
   }
   const dailyReportMap = new Map<string, number>();
   const weeklyReportMap = new Map<string, number>();
   for (const row of reports) {
-    const key = `${Number(row.dm_team_member_id)}:${Number(row.agency_client_id)}:${dateValue(row.week_start)}`;
+    const weekStart = dmMonthWeekStartForEntry(dateValue(row.activity_date), row.input_frequency);
+    if (!weekStart) continue;
+    const key = `${Number(row.dm_team_member_id)}:${Number(row.agency_client_id)}:${weekStart}`;
     const reportMap = row.input_frequency === "weekly" ? weeklyReportMap : dailyReportMap;
     reportMap.set(key, (reportMap.get(key) ?? 0) + count(row.contents));
   }
   const reportMap = new Map([...dailyReportMap].map(([key, actual]) => [key, actual + (weeklyReportMap.get(key) ?? 0)]));
   for (const [key, actual] of weeklyReportMap) if (!reportMap.has(key)) reportMap.set(key, actual);
-  const currentWeek = monthWeekStartForDate(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())) ?? "";
+  const currentWeek = dmMonthWeekStartForDate(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())) ?? "";
   const selectedWeeks = selected ? getWeeks(month,
     new Map([...targetMap].filter(([key]) => key.startsWith(`${Number(selected.dm_team_member_id)}:${Number(selected.agency_client_id)}:`)).map(([key, value]) => [key.split(":").at(-1)!, value])),
     new Map([...reportMap].filter(([key]) => key.startsWith(`${Number(selected.dm_team_member_id)}:${Number(selected.agency_client_id)}:`)).map(([key, value]) => [key.split(":").at(-1)!, value])),

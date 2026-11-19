@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, type ChangeEvent } from "react";
 import { saveDmClientDailyReports } from "@/app/admin/kpi/actions";
 import { parseDatedReport } from "@/components/dm-client-metrics-fields";
-import { monthWeekFromStart, monthWeekStartForDate } from "@/lib/dae-weeks";
+import { dmMonthWeekFromStart, dmMonthWeekStartForDate } from "@/lib/dm-weeks";
 
 type Metric="video_views"|"tiktok_sales"|"shopee_sales";
 type DailyRow={key:string;date:string;contents:string;video_views:string;tiktok_sales:string;shopee_sales:string};
@@ -17,7 +17,7 @@ const sources:Source[]=[
 ];
 const blank=(date:string):DailyRow=>({key:globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random()}`,date,contents:"",video_views:"",tiktok_sales:"",shopee_sales:""});
 function nextDay(value:string){const date=new Date(`${value}T12:00:00Z`);date.setUTCDate(date.getUTCDate()+1);return date.toISOString().slice(0,10)}
-function weeklyLabel(date:string){const start=monthWeekStartForDate(date),week=start?monthWeekFromStart(start):null;return week?`Minggu ${week.week}`:"Minggu belum ditentukan"}
+function weeklyLabel(date:string){const start=dmMonthWeekStartForDate(date),week=start?dmMonthWeekFromStart(start):null;return week?`Minggu ${week.week}`:"Minggu belum ditentukan"}
 
 export default function DmClientDailyReportsForm({dmId,clientId,dmName,clientName,initialDate}:{dmId:number;clientId:number;dmName:string;clientName:string;initialDate:string}){
   const [rows,setRows]=useState<DailyRow[]>([blank(initialDate)]);

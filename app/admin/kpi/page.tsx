@@ -6,6 +6,7 @@ import AdminTopbar from "@/components/admin-topbar";
 import { getAdminSessionUser, verifyAdminSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 import { getMonthWeekStart, monthWeekStartForDate } from "@/lib/dae-weeks";
+import { getDmMonthWeekStart, dmMonthWeekStartForEntry, dmMonthWeekStartForDate } from "@/lib/dm-weeks";
 import { isExistingAgencyClientType } from "@/lib/client-types";
 import { daeGrade, daeIndicatorScore } from "@/lib/dae-grade";
 import { monthlyCumulativeStrategyCount } from "@/lib/dae-strategies";
@@ -20,7 +21,7 @@ type Entry = RowDataPacket & { id: number; scope: string; entry_type: string; ti
 type DmEntry = RowDataPacket & { dm_id:number|null; dm_name:string|null; client_name:string|null; client_type:string|null; activity_date:string|Date; input_frequency:string; contents:number|string; video_views:number|string; tiktok_sales:number|string; shopee_sales:number|string };
 type DmAssignment = RowDataPacket & { dm_id:number; dm_name:string; client_name:string; client_type:string; client_id?:number };
 type DmContentTarget = RowDataPacket & { dm_team_member_id:number; agency_client_id:number; dm_name:string; client_name:string; week_start:string|Date; target_contents:number|string };
-type DmActual = RowDataPacket & { dm_team_member_id:number; agency_client_id:number; week_start:string|Date; input_frequency:string; contents:number|string };
+type DmActual = RowDataPacket & { dm_team_member_id:number; agency_client_id:number; activity_date:string|Date; input_frequency:string; contents:number|string };
 type Assignment = RowDataPacket & { dae_person: string; week_start: string|Date; agency_client_ids: unknown };
 type Client = RowDataPacket & { id:number; client_name:string; client_type:string };
 type WeeklyCount = RowDataPacket & { dae_person?:string; week_start:string|Date; total:number };
@@ -146,7 +147,7 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
       db.execute<DmEntry[]>("SELECT m.id AS dm_id,m.full_name AS dm_name,e.client_name,e.client_type,e.activity_date,e.input_frequency,e.contents,e.video_views,e.tiktok_sales,e.shopee_sales FROM team_activity_entries e JOIN dm_team_members m ON m.id=e.dm_team_member_id WHERE e.scope='dm' AND e.entry_type='dm_client' AND e.activity_date>=? AND e.activity_date<DATE_ADD(?,INTERVAL 1 DAY) ORDER BY e.activity_date,e.id", [rangeFrom,rangeTo]),
       db.execute<DmAssignment[]>("SELECT m.id AS dm_id,m.full_name AS dm_name,c.id AS client_id,c.client_name,c.client_type FROM dm_client_assignments a JOIN dm_team_members m ON m.id=a.dm_team_member_id JOIN agency_clients c ON c.id=a.agency_client_id ORDER BY m.full_name,c.client_name"),
       db.execute<DmContentTarget[]>("SELECT t.dm_team_member_id,t.agency_client_id,m.full_name AS dm_name,c.client_name,t.week_start,t.target_contents FROM dm_content_targets t JOIN dm_team_members m ON m.id=t.dm_team_member_id JOIN agency_clients c ON c.id=t.agency_client_id WHERE t.week_start>=? AND t.week_start<DATE_ADD(?,INTERVAL 1 MONTH) ORDER BY m.full_name,c.client_name,t.week_start", [`${month}-01`, `${month}-01`]),
-      db.execute<DmActual[]>("SELECT dm_team_member_id,agency_client_id,week_start,input_frequency,SUM(contents) AS contents FROM team_activity_entries WHERE scope='dm' AND entry_type='dm_client' AND activity_date>=? AND activity_date<DATE_ADD(?,INTERVAL 1 MONTH) AND dm_team_member_id IS NOT NULL AND agency_client_id IS NOT NULL GROUP BY dm_team_member_id,agency_client_id,week_start,input_frequency", [`${month}-01`, `${month}-01`]),
+      db.execute<DmActual[]>("SELECT dm_team_member_id,agency_client_id,activity_date,input_frequency,SUM(contents) AS contents FROM team_activity_entries WHERE scope='dm' AND entry_type='dm_client' AND activity_date>=? AND activity_date<DATE_ADD(?,INTERVAL 1 MONTH) AND dm_team_member_id IS NOT NULL AND agency_client_id IS NOT NULL GROUP BY dm_team_member_id,agency_client_id,activity_date,input_frequency", [`${month}-01`, `${month}-01`]),
     ]);
     const map = new Map<string,DmOverviewRow>();
     const ensure = (id:number|null,name:string) => { const key = name || "Belum ditentukan"; let row = map.get(key); if (!row) { row={id,name:key,clients:0,contents:0,videoViews:0,tiktokSales:0,shopeeSales:0,score:0}; map.set(key,row); } return row; };
@@ -157,11 +158,11 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     for(const row of rows)row.score=50*row.contents/max.contents+30*row.videoViews/max.videoViews+20*(row.tiktokSales+row.shopeeSales)/max.sales;
     rows.sort((a,b)=>b.score-a.score||b.videoViews-a.videoViews||a.name.localeCompare(b.name,"id"));
     const selectedDm=rows.some(row=>row.name===query.dm)?query.dm:undefined;
-    const periods=Array.from({length:5},(_,index)=>getMonthWeekStart(month,index+1));
+    const periods=Array.from({length:5},(_,index)=>getDmMonthWeekStart(month,index+1));
     const weeklyMonth=/^\d{4}-(0[1-9]|1[0-2])$/.test(query.weeklyMonth??"")?query.weeklyMonth!:month;
     const currentDate=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
-    const currentWeek=monthWeekStartForDate(currentDate)??"";
-    const weeklyPeriods=Array.from({length:5},(_,index)=>getMonthWeekStart(weeklyMonth,index+1));
+    const currentWeek=dmMonthWeekStartForDate(currentDate)??"";
+    const weeklyPeriods=Array.from({length:5},(_,index)=>getDmMonthWeekStart(weeklyMonth,index+1));
     const weeklyEntries=weeklyMonth===month?dmEntries:(await db.execute<DmEntry[]>("SELECT m.id AS dm_id,m.full_name AS dm_name,e.client_name,e.client_type,e.activity_date,e.input_frequency,e.contents,e.video_views,e.tiktok_sales,e.shopee_sales FROM team_activity_entries e JOIN dm_team_members m ON m.id=e.dm_team_member_id WHERE e.scope='dm' AND e.entry_type='dm_client' AND e.activity_date>=? AND e.activity_date<DATE_ADD(?,INTERVAL 1 MONTH) ORDER BY e.activity_date,e.id", [`${weeklyMonth}-01`, `${weeklyMonth}-01`]))[0];
     const periodForMonthDate=(date:string|Date,monthKey:string,monthPeriods:(string|null)[])=>{const day=dateValue(date);if(day.slice(0,7)!==monthKey)return null;const starts=monthPeriods.filter((period):period is string=>Boolean(period));return [...starts].reverse().find(start=>start<=day)??starts[0]??null};
     const trendMap=new Map<string,DmTrendPoint>();
@@ -193,9 +194,9 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
     for(const entry of weeklyEntries){const name=entry.dm_name??"Belum ditentukan";const week=periodForMonthDate(entry.activity_date,weeklyMonth,weeklyPeriods);if(!week)continue;const byWeek=weeklyDm.get(name)??{};const value=byWeek[week]??{contents:0,videoViews:0,tiktokSales:0,shopeeSales:0};value.contents+=Number(entry.contents);value.videoViews+=Number(entry.video_views);value.tiktokSales+=Number(entry.tiktok_sales);value.shopeeSales+=Number(entry.shopee_sales);byWeek[week]=value;weeklyDm.set(name,byWeek)}
     const weeklyDmRows:DmWeeklyRow[]=[...weeklyDm].map(([name,weeks])=>({name,weeks})).sort((a,b)=>a.name.localeCompare(b.name,"id"));
     const targetByPairWeek=new Map<string,number>();
-    for(const target of dmContentTargets)targetByPairWeek.set(`${Number(target.dm_team_member_id)}:${Number(target.agency_client_id)}:${dateValue(target.week_start)}`,Number(target.target_contents));
+    for(const target of dmContentTargets){const week=dmMonthWeekStartForEntry(dateValue(target.week_start),"weekly");if(week)targetByPairWeek.set(`${Number(target.dm_team_member_id)}:${Number(target.agency_client_id)}:${week}`,Number(target.target_contents))}
     const actualByPairWeek=new Map<string,number>();
-    for(const entry of dmActualRows){const key=`${Number(entry.dm_team_member_id)}:${Number(entry.agency_client_id)}:${dateValue(entry.week_start)}`;actualByPairWeek.set(key,(actualByPairWeek.get(key)??0)+Number(entry.contents));}
+    for(const entry of dmActualRows){const week=dmMonthWeekStartForEntry(dateValue(entry.activity_date),entry.input_frequency);if(!week)continue;const key=`${Number(entry.dm_team_member_id)}:${Number(entry.agency_client_id)}:${week}`;actualByPairWeek.set(key,(actualByPairWeek.get(key)??0)+Number(entry.contents));}
     const dmTargetRows=dmAssignments.map(assignment=>{
       const dmTeamMemberId=Number(assignment.dm_id),agencyClientId=Number(assignment.client_id);
       let carried=0;

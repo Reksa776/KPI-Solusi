@@ -11,7 +11,7 @@ import LiveSearchFilter from "@/components/live-search-filter";
 import ConfirmDeleteButton from "@/components/confirm-delete-button";
 import { getAdminSessionUser, verifyAdminSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
-import { getMonthWeekStart, monthWeekFromStart } from "@/lib/dae-weeks";
+import { getDmMonthWeekStart, dmMonthWeekFromStart, dmMonthWeekStartForEntry } from "@/lib/dm-weeks";
 import { deleteDmClientAssignment, saveDmClientAssignment } from "./actions";
 import { deleteTeamEntry, saveTeamEntry, saveDmClientBatch, saveDmWeeklyContent } from "../../actions";
 
@@ -24,9 +24,9 @@ type Entry=RowDataPacket&{id:number;title:string;client_name:string|null;client_
 const today=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 const dateValue=(value:string|Date)=>typeof value==="string"?value.slice(0,10):new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Jakarta",year:"numeric",month:"2-digit",day:"2-digit"}).format(value);
 const number=(value:unknown)=>Number(value??0).toLocaleString("id-ID");
-function weekLabel(value:string|Date){const date=dateValue(value),month=date.slice(0,7);let week=1;for(let i=1;i<=5;i++){const start=getMonthWeekStart(month,i);if(start&&start<=date)week=i}return `Minggu ${week}`}
+function weekLabel(value:string|Date){const date=dateValue(value),month=date.slice(0,7);let week=1;for(let i=1;i<=5;i++){const start=getDmMonthWeekStart(month,i);if(start&&start<=date)week=i}return `Minggu ${week}`}
 function detailHref(dmId:number,clientId:number){return `/admin/kpi/input/dm_client?dm_id=${dmId}&client_id=${clientId}`}
-function periodLabel(value:string){const period=monthWeekFromStart(value);if(!period)return value;return `${new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(`${period.month}-01T12:00:00Z`))} · Minggu ${period.week}`}
+function periodLabel(value:string){const period=dmMonthWeekFromStart(value);if(!period)return value;const [year,month,day]=value.split("-").map(Number),end=Math.min(day+6,new Date(Date.UTC(year,month,0)).getUTCDate());return `${new Intl.DateTimeFormat("id-ID",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(`${period.month}-01T12:00:00Z`))} · Minggu ${period.week} (${day}–${end})`}
 
 export default async function DmClientPage({searchParams}:{searchParams:Promise<Query>}){
   if(!(await verifyAdminSession()))redirect("/admin/login");
@@ -57,17 +57,17 @@ export default async function DmClientPage({searchParams}:{searchParams:Promise<
   if(entryId){const [rows]=await db.execute<Entry[]>("SELECT id,title,client_name,client_type,dm_person,dm_team_member_id,agency_client_id,activity_date,week_start,input_frequency,contents,video_views,tiktok_sales,shopee_sales,notes FROM team_activity_entries WHERE id=? AND entry_type='dm_client' LIMIT 1",[entryId]);editing=rows[0]?({...rows[0],id:Number(rows[0].id),dm_team_member_id:Number(rows[0].dm_team_member_id),agency_client_id:Number(rows[0].agency_client_id)}):undefined;if(!editing)notFound();}
   const assigned=editing?{dm_team_member_id:editing.dm_team_member_id!,agency_client_id:editing.agency_client_id!,dm_name:editing.dm_person??"DM",client_name:editing.client_name??"Client",client_type:editing.client_type??""}:pair;
   if((q.entry_new==="1"||q.entry_new==="multi"||editing)&&!assigned)notFound();
-  const selectedWeekStart=q.week_start&&monthWeekFromStart(q.week_start)?.weekStart===q.week_start?q.week_start:null;
-  const contentWeekStart=q.content_week&&monthWeekFromStart(q.content_week)?.weekStart===q.content_week?q.content_week:null;
+  const selectedWeekStart=q.week_start&&dmMonthWeekFromStart(q.week_start)?.weekStart===q.week_start?q.week_start:null;
+  const contentWeekStart=q.content_week&&dmMonthWeekFromStart(q.content_week)?.weekStart===q.content_week?q.content_week:null;
   if((q.week_start&&!selectedWeekStart)||(q.content_week&&!contentWeekStart))notFound();
   const weeklyMap=new Map<string,{weekStart:string;count:number;contents:number;views:number;tiktok:number;shopee:number}>();
-  for(const entry of entries){const weekStart=dateValue(entry.week_start);const aggregate=weeklyMap.get(weekStart)??{weekStart,count:0,contents:0,views:0,tiktok:0,shopee:0};aggregate.count++;aggregate.contents+=Number(entry.contents);aggregate.views+=Number(entry.video_views);aggregate.tiktok+=Number(entry.tiktok_sales);aggregate.shopee+=Number(entry.shopee_sales);weeklyMap.set(weekStart,aggregate)}
+  for(const entry of entries){const weekStart=dmMonthWeekStartForEntry(dateValue(entry.activity_date),entry.input_frequency)??dateValue(entry.week_start);const aggregate=weeklyMap.get(weekStart)??{weekStart,count:0,contents:0,views:0,tiktok:0,shopee:0};aggregate.count++;aggregate.contents+=Number(entry.contents);aggregate.views+=Number(entry.video_views);aggregate.tiktok+=Number(entry.tiktok_sales);aggregate.shopee+=Number(entry.shopee_sales);weeklyMap.set(weekStart,aggregate)}
   const weeklyRows=[...weeklyMap.values()].sort((a,b)=>b.weekStart.localeCompare(a.weekStart));
-  const selectedWeekEntries=selectedWeekStart?entries.filter(entry=>dateValue(entry.week_start)===selectedWeekStart&&entry.input_frequency==="daily"):[];
-  const selectedWeeklyContentEntries=contentWeekStart?entries.filter(entry=>dateValue(entry.week_start)===contentWeekStart&&entry.input_frequency==="weekly"):[];
+  const selectedWeekEntries=selectedWeekStart?entries.filter(entry=>dmMonthWeekStartForEntry(dateValue(entry.activity_date),entry.input_frequency)===selectedWeekStart&&entry.input_frequency==="daily"):[];
+  const selectedWeeklyContentEntries=contentWeekStart?entries.filter(entry=>dmMonthWeekStartForEntry(dateValue(entry.activity_date),entry.input_frequency)===contentWeekStart&&entry.input_frequency==="weekly"):[];
   const selectedWeeklyContent=selectedWeeklyContentEntries.reduce((total,entry)=>total+Number(entry.contents),0);
   const initialDate=editing?dateValue(editing.activity_date):today();
-  const initialWeek=editing?dateValue(editing.week_start):getMonthWeekStart(today().slice(0,7),Number(weekLabel(today()).replace("Minggu ","")))??today();
+  const initialWeek=editing?dmMonthWeekStartForEntry(dateValue(editing.activity_date),editing.input_frequency)??dateValue(editing.week_start):getDmMonthWeekStart(today().slice(0,7),Number(weekLabel(today()).replace("Minggu ","")))??today();
   return <div className="admin-page"><AdminNavigation active="kpi" teamActive="dm-client"/><main className="admin-main admin-section-main"><AdminTopbar section="DM" page="Data Client untuk DM"/><div className="admin-shell admin-form-shell team-kpi-form-shell dm-client-workspace">
     <section className="admin-heading"><div><span className="eyebrow">WORKSPACE / DM</span><h1>{editing?"Edit laporan":isDetail?pair!.client_name:isPairForm?editPair?"Edit penugasan client":"Tambah penugasan client":"Data Client untuk DM"}</h1><p>{isDetail?`Client ${pair!.client_name} · dikelola oleh ${pair!.dm_name}`:"Buat pasangan client dan DM satu kali, lalu buka pasangan tersebut untuk mencatat performa harian atau mingguan."}</p></div><div className="dm-detail-actions"><Link className="button light" href="/admin/kpi/input/dm_client">← Kembali ke Client untuk DM</Link>{isDetail&&!editing&&!q.entry_new&&!selectedWeekStart&&!contentWeekStart&&<><Link className="button light" href={`${detailHref(dmId!,clientId!)}&entry_new=multi`}>＋ Impor beberapa tanggal</Link><Link className="button" href={`${detailHref(dmId!,clientId!)}&entry_new=1`}>＋ Tambah laporan</Link></>}{!isDetail&&!isPairForm&&!editing&&<Link className="button" href="/admin/kpi/input/dm_client?new=1">＋ Tambah client DM</Link>}</div></section>
     {q.saved&&<div className="admin-success">Data berhasil disimpan.</div>}{q.deleted&&<div className="admin-success">{q.cascade?"Pasangan DM-client berhasil dihapus beserta seluruh laporan performa dan target konten terkait.":"Laporan berhasil dihapus dan rekap performa sudah diperbarui."}</div>}{q.error&&<div className="admin-error">{q.error==="duplicate"?"Pasangan DM dan client itu sudah terdaftar.":q.error==="period"?"Laporan untuk periode tersebut sudah ada. Pilih periode lain atau edit laporan yang ada.":q.error==="assignment"?"Penugasan DM-client tidak ditemukan. Muat ulang halaman lalu coba kembali.":q.error==="missing"?"Nama DM atau client sudah tidak tersedia.":q.error==="inuse"?"Penugasan ini memiliki riwayat performa, jadi DM atau client tujuan tidak bisa diganti. Hapus laporan terkait satu per satu terlebih dahulu, atau hapus pasangan untuk menghapus seluruh laporan dan targetnya.":q.error==="dependencies"?"Pasangan DM-client masih memiliki data terkait yang belum dapat dibersihkan. Periksa laporan pada halaman Detail harian dan targetnya di Target Konten DM, hapus data terkait, lalu coba lagi.":"Data belum tersimpan. Periksa pilihan dan isian lalu coba kembali."}</div>}

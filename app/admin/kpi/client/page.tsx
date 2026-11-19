@@ -5,12 +5,12 @@ import AdminTopbar from "@/components/admin-topbar";
 import DmClientOverview, { type ClientOverviewItem, type ClientWeekPoint } from "@/components/dm-client-overview";
 import { getAdminSessionUser, verifyAdminSession } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
-import { getMonthWeekStart, monthWeekStartForDate } from "@/lib/dae-weeks";
+import { getDmMonthWeekStart, dmMonthWeekStartForEntry } from "@/lib/dm-weeks";
 
 export const metadata = { title: "Overview Client | Solusi Sejalan" };
 type Query = { month?: string; dm?: string; client?: string };
 type Assignment = RowDataPacket & { client_id: number; client_name: string; client_type: string; dm_id: number; dm_name: string };
-type Report = RowDataPacket & { dm_team_member_id: number; agency_client_id: number; week_start: string | Date; contents: number | bigint; video_views: number | bigint; tiktok_sales: number | bigint; shopee_sales: number | bigint };
+type Report = RowDataPacket & { dm_team_member_id: number; agency_client_id: number; activity_date: string | Date; input_frequency: string; contents: number | bigint; video_views: number | bigint; tiktok_sales: number | bigint; shopee_sales: number | bigint };
 const dateValue = (value: string | Date) => typeof value === "string" ? value.slice(0, 10) : new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: "numeric", month: "2-digit", day: "2-digit" }).format(value);
 const monthValid = (value?: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(value ?? "");
 
@@ -23,16 +23,16 @@ export default async function AdminClientOverviewPage({ searchParams }: { search
   const db = getDb();
   const [[assignmentRows], [reportRows]] = await Promise.all([
     db.execute<Assignment[]>("SELECT a.agency_client_id AS client_id,c.client_name,c.client_type,m.id AS dm_id,m.full_name AS dm_name FROM dm_client_assignments a JOIN agency_clients c ON c.id=a.agency_client_id JOIN dm_team_members m ON m.id=a.dm_team_member_id ORDER BY c.client_name,m.full_name LIMIT 5000"),
-    db.execute<Report[]>("SELECT dm_team_member_id,agency_client_id,week_start,contents,video_views,tiktok_sales,shopee_sales FROM team_activity_entries WHERE entry_type='dm_client' AND week_start>=? AND week_start<DATE_ADD(?,INTERVAL 1 MONTH) ORDER BY week_start", [`${month}-01`, `${month}-01`]),
+    db.execute<Report[]>("SELECT dm_team_member_id,agency_client_id,activity_date,input_frequency,contents,video_views,tiktok_sales,shopee_sales FROM team_activity_entries WHERE entry_type='dm_client' AND activity_date>=? AND activity_date<DATE_ADD(?,INTERVAL 1 MONTH) ORDER BY activity_date", [`${month}-01`, `${month}-01`]),
   ]);
   const assignments = assignmentRows.map(row => ({ ...row, client_id: Number(row.client_id), dm_id: Number(row.dm_id) }));
   const reports = reportRows.map(row => ({ ...row, agency_client_id: Number(row.agency_client_id), dm_team_member_id: Number(row.dm_team_member_id) }));
-  const monthPeriods = Array.from({ length: 5 }, (_, index) => getMonthWeekStart(month, index + 1));
+  const monthPeriods = Array.from({ length: 5 }, (_, index) => getDmMonthWeekStart(month, index + 1));
   const clients: ClientOverviewItem[] = assignments.map(assignment => {
     const weekly = new Map<string, ClientWeekPoint>();
     for (const row of reports) {
       if (row.agency_client_id !== assignment.client_id || row.dm_team_member_id !== assignment.dm_id) continue;
-      const key = monthWeekStartForDate(dateValue(row.week_start));
+      const key = dmMonthWeekStartForEntry(dateValue(row.activity_date), row.input_frequency);
       if (!key) continue;
       const week = monthPeriods.indexOf(key) + 1;
       if (week < 1) continue;
