@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import type { RowDataPacket } from "@/lib/db-types";
 import { verifyAdminScope } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
-import { syncAllDmSpreadsheets } from "@/lib/dm-spreadsheet-sync";
 
 const path="/admin/kpi/input/dm_client";
 const number=(form:FormData,key:string)=>Number(String(form.get(key)??""));
@@ -45,42 +44,6 @@ export async function saveDmClientAssignment(form:FormData) {
   }
   revalidatePath(path); revalidatePath("/admin/kpi/input/dm_team"); revalidatePath("/admin/kpi"); revalidatePath("/admin");
   redirect(`${path}?dm_id=${dmId}&client_id=${clientId}&saved=1`);
-}
-
-export async function saveDmSpreadsheetSource(form:FormData) {
-  if(!(await verifyAdminScope("dm")))redirect("/admin/kpi");
-  const url=String(form.get("spreadsheet_url")??"").trim().slice(0,1000);
-  let parsed:URL;
-  try{parsed=new URL(url)}catch{redirect(`${path}?error=sheet_url`)}
-  if(parsed.protocol!=="https:"||parsed.hostname!=="docs.google.com"||!/^\/spreadsheets\/d\/[a-zA-Z0-9_-]+/.test(parsed.pathname))redirect(`${path}?error=sheet_url`);
-  const db=getDb(),[members]=await db.execute<(RowDataPacket&{id:number})[]>("SELECT id FROM dm_team_members ORDER BY id LIMIT 500");
-  if(!members.length)redirect(`${path}?error=missing`);
-  await db.transaction(async tx=>{for(const member of members)await tx.execute("INSERT INTO dm_spreadsheet_sources (dm_team_member_id,spreadsheet_url) VALUES (?,?) ON DUPLICATE KEY UPDATE spreadsheet_url=VALUES(spreadsheet_url),last_synced_at=NULL,last_sync_status=NULL",[member.id,url])});
-  // Import the workbook as part of saving its source so the application
-  // database is populated even before the client page hydrates.
-  let syncSummary="sync=error";
-  try{
-    const result=await syncAllDmSpreadsheets(),successful=result.results.filter(item=>item.ok);
-    const rows=successful.reduce((sum,item)=>sum+((item as {total?:number}).total??0),0),created=successful.reduce((sum,item)=>sum+((item as {created?:number}).created??0),0),updated=successful.reduce((sum,item)=>sum+((item as {updated?:number}).updated??0),0);
-    syncSummary=new URLSearchParams({synced:String(result.updated),processed:String(result.processed),rows:String(rows),created:String(created),updated:String(updated),failed:String(result.failed)}).toString();
-  }catch{}
-  revalidatePath(path);revalidatePath("/performa/dm");
-  revalidatePath("/admin/kpi/input/dm_team");
-  redirect(`/admin/kpi/input/dm_client?sourceSaved=1&${syncSummary}`);
-}
-
-export async function saveSpreadsheetDmRevenue(form:FormData) {
-  if(!(await verifyAdminScope("dm")))redirect("/admin/kpi");
-  const id=number(form,"id"),clientId=number(form,"agency_client_id"),tiktok=number(form,"tiktok_sales"),shopee=number(form,"shopee_sales");
-  if(!Number.isSafeInteger(id)||id<1||!Number.isSafeInteger(tiktok)||tiktok<0||!Number.isSafeInteger(shopee)||shopee<0)redirect("/admin/kpi/input/dm_client?error=sales");
-  if(!Number.isSafeInteger(clientId)||clientId<1)redirect("/admin/kpi/input/dm_client?error=client");
-  const db=getDb(),[rows]=await db.execute<(RowDataPacket&{id:number;dm_team_member_id:number})[]>("SELECT id,dm_team_member_id FROM team_activity_entries WHERE id=? AND entry_type='dm_client' AND input_frequency='daily' AND title LIKE 'Performa spreadsheet · %' LIMIT 1",[id]);
-  if(!rows.length)redirect("/admin/kpi/input/dm_client?error=sales");
-  const[assignments]=await db.execute<(RowDataPacket&{client_name:string;client_type:string})[]>("SELECT c.client_name,c.client_type FROM dm_client_assignments a JOIN agency_clients c ON c.id=a.agency_client_id WHERE a.dm_team_member_id=? AND a.agency_client_id=? LIMIT 1",[rows[0].dm_team_member_id,clientId]);
-  if(!assignments.length)redirect("/admin/kpi/input/dm_client?error=client");
-  await db.execute("UPDATE team_activity_entries SET agency_client_id=?,client_name=?,client_type=?,tiktok_sales=?,shopee_sales=? WHERE id=?",[clientId,assignments[0].client_name,assignments[0].client_type,tiktok,shopee,id]);
-  revalidatePath(path);revalidatePath("/admin/kpi");revalidatePath("/performa/dm");revalidatePath("/admin");
-  redirect("/admin/kpi/input/dm_client?revenueSaved=1");
 }
 
 export async function deleteDmClientAssignment(form:FormData) {

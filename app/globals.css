@@ -1008,15 +1008,27 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dm-report-apply{justify-self:start;padding:7px 10px;border:1px solid #59622a;border-radius:7px;background:#252c16;color:#d2fb07;font:700 10px 'DM Sans',sans-serif;cursor:pointer}
 .dm-report-apply:disabled{opacity:.45;cursor:not-allowed}
 .dm-detail-actions{display:flex;flex-wrap:wrap;gap:8px}
-.dm-sheet-source{display:grid;gap:12px;margin-bottom:14px}
-.dm-sheet-source .analytics-panel-heading{margin:0}
-.dm-sheet-source .analytics-panel-heading h2{margin:0;color:#eef0e8;font:700 15px 'Manrope',sans-serif}
-.dm-sheet-source .analytics-panel-heading p,.dm-sheet-source .form-hint{margin:4px 0 0;color:#9da294;font-size:11px;line-height:1.5}
-.dm-sheet-source-form{display:flex;align-items:end;gap:10px}
-.dm-sheet-source-form label{display:grid;flex:1;gap:5px;color:#cfd3c8;font-size:11px;font-weight:650}
-.dm-sheet-source-form input{width:100%;height:38px;padding:0 10px;border:1px solid #34392f;border-radius:7px;background:#111410;color:#edf0e7;font:500 12px 'DM Sans',sans-serif}
-.dm-sheet-source-form .form-actions{margin:0}
-.dm-sheet-source>.dm-report-notice{color:#aeb3a6;font-size:10px}
+.dm-excel-import{display:grid;gap:12px;margin-bottom:14px}
+.dm-excel-import .analytics-panel-heading{margin:0}
+.dm-excel-import .analytics-panel-heading h2{margin:0;color:#eef0e8;font:700 15px 'Manrope',sans-serif}
+.dm-excel-import .analytics-panel-heading p{margin:4px 0 0;color:#9da294;font-size:11px;line-height:1.5}
+.dm-excel-upload{display:flex;align-items:end;gap:10px}
+.dm-excel-upload label{display:grid;flex:1;gap:5px;color:#cfd3c8;font-size:11px;font-weight:650}
+.dm-excel-upload input{width:100%;min-height:38px;padding:7px 10px;border:1px solid #34392f;border-radius:7px;background:#111410;color:#edf0e7;font:500 12px 'DM Sans',sans-serif}
+.dm-excel-upload .button{white-space:nowrap}
+.dm-excel-preview{display:grid;gap:10px}
+.dm-excel-preview-summary{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border:1px solid #34392f;border-radius:8px;background:#1a1e17;color:#e8ebdf;font-size:12px}
+.dm-excel-preview-summary span{color:#aeb3a6;font-size:11px}
+.dm-excel-warnings{display:grid;gap:4px;padding:9px 11px;border:1px solid #484128;border-radius:8px;background:#211f16;color:#d8c98c}
+.dm-excel-warnings small{color:#c2b991}
+.dm-excel-table-wrap{max-height:440px;overflow:auto;border:1px solid #30362b;border-radius:8px}
+.dm-excel-table-wrap .admin-table{min-width:760px;margin:0}
+.dm-excel-badge{display:inline-flex;padding:4px 7px;border-radius:6px;font-size:10px;font-weight:700;white-space:nowrap}
+.dm-excel-badge.is-update{border:1px solid #59522b;background:#262516;color:#e0ca62}
+.dm-excel-badge.is-new{border:1px solid #344633;background:#172119;color:#9dc496}
+.dm-excel-confirm{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.dm-excel-confirm small{color:#9da294;font-size:10px;line-height:1.5}
+.dm-excel-error{margin:0;padding:9px 11px;border:1px solid #573d39;border-radius:8px;background:#241916;color:#efaaa0;font-size:11px}
 .dm-sheet-daily-table{min-width:1180px}
 .dm-sheet-sales-form{display:flex;align-items:center;gap:7px;min-width:390px}
 .dm-sheet-sales-form label{display:block;flex:1;min-width:105px}
@@ -1026,7 +1038,6 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dm-sheet-settings{margin-top:8px;color:#aeb3a6;font-size:11px}
 .dm-sheet-settings>summary{width:max-content;color:#b9c151;font-size:10px;font-weight:650;cursor:pointer}
 .dm-sheet-settings[open]{position:relative;z-index:2}
-.dm-sheet-settings .dm-sheet-source{max-width:760px;margin-top:10px;padding:12px;background:#111410}
 .dm-daily-batch-form{max-width:100%!important}
 .dm-daily-import{gap:11px}
 .dm-daily-import>h2,.dm-daily-heading h2{margin:0;color:#eef0e8;font:700 15px 'Manrope',sans-serif}
@@ -1061,7 +1072,7 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dm-daily-row>header button{display:grid;width:28px;height:28px;place-items:center;border:1px solid #493333;border-radius:7px;background:#251919;color:#f2a6a6;font-size:19px;cursor:pointer}
 .dm-daily-date{display:grid;max-width:260px;gap:6px;color:#cfd3c8;font-size:11px;font-weight:600}
 .dm-daily-date input{height:38px;padding:0 9px;border:1px solid #34392f;border-radius:7px;background:#171a16;color:#edf0e7}
-@media(max-width:600px){.dm-detail-actions{width:100%}.dm-detail-actions .button{flex:1;justify-content:center;padding-inline:8px;font-size:10px}.dm-daily-heading{align-items:flex-start;flex-direction:column}.dm-daily-heading>.button{width:100%;justify-content:center}.dm-daily-source{grid-template-columns:1fr}.dm-sheet-source-form{align-items:stretch;flex-direction:column}.dm-sheet-source-form .form-actions,.dm-sheet-source-form .button{width:100%;justify-content:center}.dm-import-preview{grid-template-columns:minmax(90px,1fr) minmax(75px,.7fr) minmax(80px,.7fr)}.dm-week-filter{display:grid;grid-template-columns:1fr 1fr}.dm-week-filter label{min-width:0}.dm-week-filter>.button{justify-content:center}.dm-week-metric-summary{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.dm-detail-actions{width:100%}.dm-detail-actions .button{flex:1;justify-content:center;padding-inline:8px;font-size:10px}.dm-daily-heading{align-items:flex-start;flex-direction:column}.dm-daily-heading>.button{width:100%;justify-content:center}.dm-daily-source{grid-template-columns:1fr}.dm-excel-upload{align-items:stretch;flex-direction:column}.dm-excel-upload .button{width:100%;justify-content:center}.dm-excel-confirm{align-items:stretch;flex-direction:column}.dm-excel-confirm .button{width:100%;justify-content:center}.dm-import-preview{grid-template-columns:minmax(90px,1fr) minmax(75px,.7fr) minmax(80px,.7fr)}.dm-week-filter{display:grid;grid-template-columns:1fr 1fr}.dm-week-filter label{min-width:0}.dm-week-filter>.button{justify-content:center}.dm-week-metric-summary{grid-template-columns:1fr 1fr}}
 .dae-strategy-number{align-self:center;display:grid;width:25px;height:25px;place-items:center;border:1px solid #414a25;border-radius:7px;background:#252c16;color:#d2fb07;font-size:11px;font-weight:700}
 .dae-strategy-row label{display:grid;gap:6px;color:#c7cbbf;font-size:10px;font-weight:600}
 .dae-strategy-row input,.dae-strategy-row select{width:100%;height:38px;padding:0 10px;border:1px solid #34392f;border-radius:7px;background:#111410;color:#edf0e7;font:500 11px 'DM Sans',sans-serif}

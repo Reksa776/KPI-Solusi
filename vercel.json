@@ -1,6 +1,5 @@
 {
   "crons": [
-    { "path": "/api/cron/process-notifications", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/sync-dm-spreadsheets", "schedule": "* * * * *" }
+    { "path": "/api/cron/process-notifications", "schedule": "*/5 * * * *" }
   ]
 }
