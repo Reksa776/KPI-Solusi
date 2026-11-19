@@ -86,6 +86,7 @@ export function parseDmPerformanceExcel(bytes: Buffer, dms: Dm[], assignments: A
     if (!sheet) { warnings.push(`Tab ${dm.full_name} tidak ada di file.`); continue; }
     const clients = byDm.get(Number(dm.id)) ?? [];
     if (!clients.length) { warnings.push(`${dm.full_name}: belum ada pasangan client yang ditugaskan di aplikasi.`); continue; }
+    const titleSamples = [...new Set(sheet.rows.map(row => (row[0] ?? "").trim()).filter(value => value.length >= 4 && !/^(senin|selasa|rabu|kamis|jumat|jum\x27at|sabtu|minggu|totalweek\d*)$/i.test(normalize(value))))].slice(0, 20);
     const resolve = (value: string) => {
       const candidate = normalize(value);
       if (!candidate || candidate.length > 32) return undefined;
@@ -94,26 +95,19 @@ export function parseDmPerformanceExcel(bytes: Buffer, dms: Dm[], assignments: A
       const partial = clients.filter(client => { const name = normalize(client.client_name); return name.length >= 3 && (name.includes(candidate) || candidate.includes(name)); });
       return partial.length === 1 ? partial[0] : undefined;
     };
-    // In this workbook each client is a separate section: its title is in column A,
-    // followed by a header row for Tanggal and a nearby header row for Views/Upload.
-    // Only accept these section titles; matching arbitrary cells can mistake weekly
-    // summaries or monitoring panels for client boundaries and attach wrong dates.
-    const blocks: { titleIndex: number; dataStart: number; title: string; client?: Assignment }[] = [];
+    // Each client section starts with its client title in column A. Do not depend on
+    // a fixed number of header rows: exported Excel files may omit blank rows or
+    // encode merged headers differently. The client assignment itself is the stable
+    // boundary; dates and metrics are still read only from B, C, and F below.
+    const blocks: { titleIndex: number; dataStart: number; title: string; client: Assignment }[] = [];
     for (let index = 0; index < sheet.rows.length; index++) {
       const title = (sheet.rows[index]?.[0] ?? "").trim();
       if (!title) continue;
-      const headerOffset = [1, 2, 3].find(offset => {
-        const header = sheet.rows[index + offset] ?? [];
-        const headers = sheet.rows.slice(index + offset, index + offset + 2).flat();
-        return ["tanggal", "date"].includes(normalize(header[1] ?? "")) &&
-          headers.some(value => ["views", "view", "tayangan"].includes(normalize(value ?? ""))) &&
-          headers.some(value => ["jumlahupload", "jumlahkonten", "konten"].includes(normalize(value ?? "")));
-      });
-      if (headerOffset) blocks.push({ titleIndex: index, dataStart: index + headerOffset + 2, title, client: resolve(title) });
+      const client = resolve(title);
+      if (client) blocks.push({ titleIndex: index, dataStart: index + 1, title, client });
     }
     let tabRows = 0;
     let dateRowsFound = 0, populatedRowsFound = 0;
-    const unmatchedTitles: string[] = [];
     for (let index = 0; index < blocks.length; index++) {
       const block = blocks[index], end = blocks[index + 1]?.titleIndex ?? sheet.rows.length;
       const sourceRows = sheet.rows.slice(block.dataStart, end).flatMap(row => {
@@ -124,7 +118,6 @@ export function parseDmPerformanceExcel(bytes: Buffer, dms: Dm[], assignments: A
       dateRowsFound += sourceRows.length;
       populatedRowsFound += populated.length;
       if (!populated.length) continue;
-      if (!block.client) { unmatchedTitles.push(block.title); warnings.push(`${dm.full_name}: judul client "${block.title}" memiliki ${populated.length} baris data, tetapi tidak cocok dengan client yang ditugaskan di aplikasi.`); continue; }
       // The workbook is organized by month, but its weekly template can carry
       // blank date rows into the following month. Scope replacement to the month
       // that actually contains this client's entered metrics.
@@ -142,7 +135,7 @@ export function parseDmPerformanceExcel(bytes: Buffer, dms: Dm[], assignments: A
         records.set(`${metric.dmId}:${metric.clientId}:${metric.date}`, metric); tabRows++;
       }
     }
-    if (!tabRows) warnings.push(`${dm.full_name}: 0 baris masuk. Pemeriksaan file menemukan ${sheet.rows.length} baris sheet, ${blocks.length} blok client, ${dateRowsFound} tanggal, dan ${populatedRowsFound} baris berisi Views/Konten.${unmatchedTitles.length ? ` Judul yang tidak cocok: ${[...new Set(unmatchedTitles)].join(", ")}.` : ` Client yang ditugaskan: ${clients.map(client => client.client_name).join(", ") || "tidak ada"}.`}`);
+    if (!tabRows) warnings.push(`${dm.full_name}: 0 baris masuk. Pemeriksaan file menemukan ${sheet.rows.length} baris sheet, ${blocks.length} judul client cocok, ${dateRowsFound} tanggal, dan ${populatedRowsFound} baris berisi Views/Konten. Judul di kolom A: ${titleSamples.join(", ") || "tidak terbaca"}. Client yang ditugaskan: ${clients.map(client => client.client_name).join(", ") || "tidak ada"}.`);
   }
   const values = [...records.values()].sort((a, b) => a.date.localeCompare(b.date) || a.dmName.localeCompare(b.dmName, "id") || a.clientName.localeCompare(b.clientName, "id"));
   if (values.length > 3000) throw new Error("File berisi lebih dari 3.000 baris performa. Pecah file per periode sebelum impor.");
