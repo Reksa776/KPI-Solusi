@@ -5,6 +5,7 @@ type Sheet = { name: string; rows: string[][] };
 type Dm = { id: number; full_name: string };
 type Assignment = { dm_team_member_id: number; agency_client_id: number; client_name: string; client_type: string };
 export type DmExcelMetric = { dmId: number; dmName: string; clientId: number; clientName: string; clientType: string; date: string; contents: number; views: number };
+export type DmExcelCoverage = { dmId: number; dmName: string; clientId: number; clientName: string; start: string; end: string };
 const decoder = new TextDecoder();
 const normalize = (value: string) => value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 
@@ -77,7 +78,7 @@ function numberValue(value: string) {
 export function parseDmPerformanceExcel(bytes: Buffer, dms: Dm[], assignments: Assignment[]) {
   const sheets = parseWorkbook(bytes), sheetByName = new Map(sheets.map(sheet => [normalize(sheet.name), sheet]));
   const year = Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Jakarta", year: "numeric" }).format(new Date()));
-  const warnings: string[] = [], records = new Map<string, DmExcelMetric>();
+  const warnings: string[] = [], records = new Map<string, DmExcelMetric>(), coverage = new Map<string, DmExcelCoverage>();
   const byDm = new Map<number, Assignment[]>();
   for (const assignment of assignments) { const items = byDm.get(Number(assignment.dm_team_member_id)) ?? []; items.push(assignment); byDm.set(Number(assignment.dm_team_member_id), items); }
   for (const dm of dms) {
@@ -93,21 +94,46 @@ export function parseDmPerformanceExcel(bytes: Buffer, dms: Dm[], assignments: A
       const partial = clients.filter(client => { const name = normalize(client.client_name); return name.length >= 3 && (name.includes(candidate) || candidate.includes(name)); });
       return partial.length === 1 ? partial[0] : undefined;
     };
-    const blocks = sheet.rows.flatMap((row, index) => {
-      const matches = [...new Map(row.map(value => { const client = resolve(value ?? ""); return client ? [Number(client.agency_client_id), client] as const : null; }).filter((item): item is readonly [number, Assignment] => Boolean(item))).values()];
-      return matches.map(client => ({ index, client }));
-    });
+    // In this workbook each client is a separate section: its title is in column A,
+    // followed by a header row for Tanggal and a nearby header row for Views/Upload.
+    // Only accept these section titles; matching arbitrary cells can mistake weekly
+    // summaries or monitoring panels for client boundaries and attach wrong dates.
+    const blocks: { titleIndex: number; dataStart: number; title: string; client?: Assignment }[] = [];
     for (let index = 0; index < sheet.rows.length; index++) {
-      const row = sheet.rows[index], hasDateHeader = row.some(value => ["tanggal", "date"].includes(normalize(value ?? "")));
-      if (!hasDateHeader || !sheet.rows.slice(index, index + 3).some(candidate => candidate.some(value => ["views", "view", "tayangan"].includes(normalize(value ?? ""))))) continue;
-      const hasClientTitle = blocks.some(block => block.index <= index && index - block.index <= 6);
-      if (!hasClientTitle) warnings.push(`${dm.full_name}: ada blok performa bertanggal dengan judul client yang tidak cocok dengan penugasan di aplikasi.`);
+      const title = (sheet.rows[index]?.[0] ?? "").trim();
+      if (!title) continue;
+      const headerOffset = [1, 2, 3].find(offset => {
+        const header = sheet.rows[index + offset] ?? [];
+        const headers = sheet.rows.slice(index + offset, index + offset + 2).flat();
+        return ["tanggal", "date"].includes(normalize(header[1] ?? "")) &&
+          headers.some(value => ["views", "view", "tayangan"].includes(normalize(value ?? ""))) &&
+          headers.some(value => ["jumlahupload", "jumlahkonten", "konten"].includes(normalize(value ?? "")));
+      });
+      if (headerOffset) blocks.push({ titleIndex: index, dataStart: index + headerOffset + 2, title, client: resolve(title) });
     }
     let tabRows = 0;
     for (let index = 0; index < blocks.length; index++) {
-      const block = blocks[index], end = blocks[index + 1]?.index ?? sheet.rows.length;
-      for (const row of sheet.rows.slice(block.index + 1, end)) {
-        const date = dateValue(row[1] ?? "", year); if (!date) continue;
+      const block = blocks[index], end = blocks[index + 1]?.titleIndex ?? sheet.rows.length;
+      const sourceRows = sheet.rows.slice(block.dataStart, end).flatMap(row => {
+        const date = dateValue(row[1] ?? "", year);
+        return date ? [{ row, date }] : [];
+      });
+      const populated = sourceRows.filter(({ row }) => (row[2] ?? "").trim() !== "" || (row[5] ?? "").trim() !== "");
+      if (!populated.length) continue;
+      if (!block.client) { warnings.push(`${dm.full_name}: judul client "${block.title}" memiliki data, tetapi tidak cocok dengan pasangan client di aplikasi.`); continue; }
+      // The workbook is organized by month, but its weekly template can carry
+      // blank date rows into the following month. Scope replacement to the month
+      // that actually contains this client's entered metrics.
+      const monthCounts = new Map<string, number>();
+      for (const item of populated) monthCounts.set(item.date.slice(0, 7), (monthCounts.get(item.date.slice(0, 7)) ?? 0) + 1);
+      const sourceMonth = [...monthCounts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+      const [monthYear, monthNumber] = sourceMonth.split("-").map(Number);
+      const monthStart = `${sourceMonth}-01`, monthEnd = `${sourceMonth}-${String(new Date(Date.UTC(monthYear, monthNumber, 0)).getUTCDate()).padStart(2, "0")}`;
+      const coverageKey = `${dm.id}:${block.client.agency_client_id}`;
+      const priorCoverage = coverage.get(coverageKey);
+      coverage.set(coverageKey, { dmId: Number(dm.id), dmName: dm.full_name, clientId: Number(block.client.agency_client_id), clientName: block.client.client_name, start: priorCoverage && priorCoverage.start < monthStart ? priorCoverage.start : monthStart, end: priorCoverage && priorCoverage.end > monthEnd ? priorCoverage.end : monthEnd });
+      for (const { row, date } of populated) {
+        if (!date.startsWith(`${sourceMonth}-`)) continue;
         const metric: DmExcelMetric = { dmId: Number(dm.id), dmName: dm.full_name, clientId: Number(block.client.agency_client_id), clientName: block.client.client_name, clientType: block.client.client_type, date, contents: numberValue(row[5] ?? ""), views: numberValue(row[2] ?? "") };
         records.set(`${metric.dmId}:${metric.clientId}:${metric.date}`, metric); tabRows++;
       }
@@ -116,5 +142,5 @@ export function parseDmPerformanceExcel(bytes: Buffer, dms: Dm[], assignments: A
   }
   const values = [...records.values()].sort((a, b) => a.date.localeCompare(b.date) || a.dmName.localeCompare(b.dmName, "id") || a.clientName.localeCompare(b.clientName, "id"));
   if (values.length > 3000) throw new Error("File berisi lebih dari 3.000 baris performa. Pecah file per periode sebelum impor.");
-  return { rows: values, warnings, sheets: sheets.map(sheet => sheet.name) };
+  return { rows: values, coverage: [...coverage.values()], warnings, sheets: sheets.map(sheet => sheet.name) };
 }
