@@ -57,10 +57,12 @@ function parseWorkbook(bytes: Buffer): Sheet[] {
     const xml = zipEntry(bytes, path); if (!xml) return [];
     const rows = Array.from(xml.toString("utf8").matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g), rowMatch => {
       const values: string[] = [];
-      for (const cell of rowMatch[1].matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/g)) {
+      // Excel writes empty cells as self-closing tags (<c .../>). Match those
+      // separately so the parser never consumes later cells into an empty cell.
+      for (const cell of rowMatch[1].matchAll(/<c\b([^>]*?)(?:\s*\/>|>([\s\S]*?)<\/c>)/g)) {
         const index = columnIndex(attribute(cell[1], "r")); if (index < 0) continue;
-        const type = attribute(cell[1], "t"), raw = cell[2].match(/<v\b[^>]*>([\s\S]*?)<\/v>/)?.[1] ?? "";
-        values[index] = type === "s" ? shared[Number(raw)] ?? "" : type === "inlineStr" ? xmlText(cell[2]) : decodeXml(raw);
+        const body = cell[2] ?? "", type = attribute(cell[1], "t"), raw = body.match(/<v\b[^>]*>([\s\S]*?)<\/v>/)?.[1] ?? "";
+        values[index] = type === "s" ? shared[Number(raw)] ?? "" : type === "inlineStr" ? xmlText(body) : decodeXml(raw);
       }
       return values;
     });
