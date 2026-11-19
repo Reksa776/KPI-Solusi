@@ -112,6 +112,8 @@ export function parseDmPerformanceExcel(bytes: Buffer, dms: Dm[], assignments: A
       if (headerOffset) blocks.push({ titleIndex: index, dataStart: index + headerOffset + 2, title, client: resolve(title) });
     }
     let tabRows = 0;
+    let dateRowsFound = 0, populatedRowsFound = 0;
+    const unmatchedTitles: string[] = [];
     for (let index = 0; index < blocks.length; index++) {
       const block = blocks[index], end = blocks[index + 1]?.titleIndex ?? sheet.rows.length;
       const sourceRows = sheet.rows.slice(block.dataStart, end).flatMap(row => {
@@ -119,8 +121,10 @@ export function parseDmPerformanceExcel(bytes: Buffer, dms: Dm[], assignments: A
         return date ? [{ row, date }] : [];
       });
       const populated = sourceRows.filter(({ row }) => (row[2] ?? "").trim() !== "" || (row[5] ?? "").trim() !== "");
+      dateRowsFound += sourceRows.length;
+      populatedRowsFound += populated.length;
       if (!populated.length) continue;
-      if (!block.client) { warnings.push(`${dm.full_name}: judul client "${block.title}" memiliki data, tetapi tidak cocok dengan pasangan client di aplikasi.`); continue; }
+      if (!block.client) { unmatchedTitles.push(block.title); warnings.push(`${dm.full_name}: judul client "${block.title}" memiliki ${populated.length} baris data, tetapi tidak cocok dengan client yang ditugaskan di aplikasi.`); continue; }
       // The workbook is organized by month, but its weekly template can carry
       // blank date rows into the following month. Scope replacement to the month
       // that actually contains this client's entered metrics.
@@ -138,7 +142,7 @@ export function parseDmPerformanceExcel(bytes: Buffer, dms: Dm[], assignments: A
         records.set(`${metric.dmId}:${metric.clientId}:${metric.date}`, metric); tabRows++;
       }
     }
-    if (!tabRows) warnings.push(`${dm.full_name}: tidak ada judul client yang cocok dengan pasangan client di aplikasi atau tanggal valid di kolom B.`);
+    if (!tabRows) warnings.push(`${dm.full_name}: 0 baris masuk. Pemeriksaan file menemukan ${sheet.rows.length} baris sheet, ${blocks.length} blok client, ${dateRowsFound} tanggal, dan ${populatedRowsFound} baris berisi Views/Konten.${unmatchedTitles.length ? ` Judul yang tidak cocok: ${[...new Set(unmatchedTitles)].join(", ")}.` : ` Client yang ditugaskan: ${clients.map(client => client.client_name).join(", ") || "tidak ada"}.`}`);
   }
   const values = [...records.values()].sort((a, b) => a.date.localeCompare(b.date) || a.dmName.localeCompare(b.dmName, "id") || a.clientName.localeCompare(b.clientName, "id"));
   if (values.length > 3000) throw new Error("File berisi lebih dari 3.000 baris performa. Pecah file per periode sebelum impor.");
