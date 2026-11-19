@@ -186,7 +186,9 @@ export default async function KpiDashboard({ searchParams }: { searchParams: Pro
         if(week){const byWeek=clientWeekly.get(key)??{};const value=byWeek[week]??{contents:0,videoViews:0,tiktokSales:0,shopeeSales:0};value.contents+=Number(entry.contents);value.videoViews+=Number(entry.video_views);value.tiktokSales+=Number(entry.tiktok_sales);value.shopeeSales+=Number(entry.shopee_sales);byWeek[week]=value;clientWeekly.set(key,byWeek);total.weeks=byWeek}
       }
     }
-    const performanceRows=[...performanceMap.values()].sort((a,b)=>b.videoViews-a.videoViews||a.name.localeCompare(b.name,"id"));
+    // Hide client rows with no content and no views in the selected KPI range.
+    // Their assignment and historical reports remain intact in the database.
+    const performanceRows=[...performanceMap.values()].filter(row=>row.contents>0||row.videoViews>0).sort((a,b)=>b.videoViews-a.videoViews||a.name.localeCompare(b.name,"id"));
     const weeklyDm=new Map<string,Record<string,ClientWeek>>();
     for(const entry of weeklyEntries){const name=entry.dm_name??"Belum ditentukan";const week=periodForMonthDate(entry.activity_date,weeklyMonth,weeklyPeriods);if(!week)continue;const byWeek=weeklyDm.get(name)??{};const value=byWeek[week]??{contents:0,videoViews:0,tiktokSales:0,shopeeSales:0};value.contents+=Number(entry.contents);value.videoViews+=Number(entry.video_views);value.tiktokSales+=Number(entry.tiktok_sales);value.shopeeSales+=Number(entry.shopee_sales);byWeek[week]=value;weeklyDm.set(name,byWeek)}
     const weeklyDmRows:DmWeeklyRow[]=[...weeklyDm].map(([name,weeks])=>({name,weeks})).sort((a,b)=>a.name.localeCompare(b.name,"id"));

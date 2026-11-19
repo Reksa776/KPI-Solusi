@@ -43,31 +43,29 @@ function reportDate(value:string){const google=value.match(/^Date\((\d{4}),(\d{1
 function number(value:string){const direct=Number(value.trim());if(Number.isSafeInteger(direct)&&direct>=0)return direct;const digits=Number(value.replace(/[^\d-]/g,""));return Number.isSafeInteger(digits)&&digits>=0?digits:0}
 function parseKpiRows(rows:CsvRow[],dmName:string,clients:{name:string}[]):MetricRow[]{
   const clientByName=new Map(clients.map(client=>[normalize(client.name),client.name]));
-  const headers=rows.flatMap((row,index)=>{
-    const columns={date:-1,views:-1,contents:-1};
-    row.forEach((value,column)=>{const header=normalize(value);if(columns.date<0&&["tanggal","date"].includes(header))columns.date=column;if(columns.views<0&&["views","view","tayangan"].includes(header))columns.views=column;if(columns.contents<0&&["jumlahupload","jumlahkonten","konten"].includes(header))columns.contents=column});
-    if(columns.date<0||columns.views<0)return[];
-    if(columns.contents<0)columns.contents=5;
-    return[{index,columns}];
+  const blocks=rows.flatMap((row,index)=>{
+    const names=[...new Set(row.map(value=>{
+      const normalized=normalize(value??""),exact=clientByName.get(normalized);
+      if(exact)return exact;
+      if(normalized.length<3)return"";
+      const partial=clients.filter(client=>{const name=normalize(client.name);return name.includes(normalized)||normalized.includes(name)});
+      return partial.length===1?partial[0].name:"";
+    }).filter(Boolean))];
+    return names.map(clientName=>({index,clientName}));
   });
   const records=new Map<string,MetricRow>();
-  for(let section=0;section<headers.length;section++){
-    const header=headers[section],end=headers[section+1]?.index??rows.length;
-    let clientName:string|undefined;
-    // Each client performance block is titled in one of the rows immediately
-    // above its date/views header (including merged cells in Google Sheets).
-    for(let offset=0;offset<=5&&!clientName;offset++){
-      const row=rows[header.index-offset]??[];
-      for(const value of row){const candidate=clientByName.get(normalize(value??""));if(candidate){clientName=candidate;break}}
-    }
-    if(!clientName)throw new Error(`Nama client untuk blok performa di tab ${dmName} tidak cocok dengan client yang ditugaskan pada DM ini.`);
-    for(const row of rows.slice(header.index+1,end)){
-      const date=reportDate(row[header.columns.date]??"");if(!date)continue;
-      records.set(`${normalize(clientName)}:${date}`,{date,clientName,contents:number(row[header.columns.contents]??""),views:number(row[header.columns.views]??"")});
+  for(let section=0;section<blocks.length;section++){
+    const block=blocks[section],end=blocks[section+1]?.index??rows.length;
+    // In this workbook, client names label each repeated performance table.
+    // The table's daily columns are B=Date, C=Views, and F=Jumlah Upload.
+    for(const row of rows.slice(block.index+1,end)){
+      const date=reportDate(row[1]??"");if(!date)continue;
+      records.set(`${normalize(block.clientName)}:${date}`,{date,clientName:block.clientName,contents:number(row[5]??""),views:number(row[2]??"")});
     }
   }
   if(records.size)return[...records.values()].sort((a,b)=>a.date.localeCompare(b.date)||a.clientName.localeCompare(b.clientName,"id"));
-  throw new Error(`Tanggal tidak terbaca pada tab ${dmName}; setiap blok client perlu kolom Tanggal, Views, dan Jumlah Upload.`);
+  if(!blocks.length)throw new Error(`Judul client pada tab ${dmName} belum cocok dengan nama client yang ditugaskan di aplikasi (${clients.map(client=>client.name).join(", ")}).`);
+  throw new Error(`Tanggal tidak terbaca pada blok client di tab ${dmName}; data diharapkan pada kolom B (Tanggal), C (Views), dan F (Jumlah Upload).`);
 }
 function sheetId(url:string){const parsed=new URL(url);if(parsed.protocol!=="https:"||parsed.hostname!=="docs.google.com")throw new Error("Link harus berasal dari Google Sheets.");const match=parsed.pathname.match(/^\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);if(!match)throw new Error("Format link spreadsheet tidak valid.");return match[1]}
 type SourceMember={dm_team_member_id:number;full_name:string;spreadsheet_url:string};
