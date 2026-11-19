@@ -979,6 +979,7 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dae-month-week-picker{margin:0}
 .dae-month-week-picker>label{display:grid;gap:7px;color:#d6d9cf;font-size:11px;font-weight:600}
 .dae-month-week-picker select,.dae-month-week-picker input[type=month]{width:100%;height:40px;padding:0 11px;border:1px solid #34392f;border-radius:8px;background:#111410;color:#edf0e7;font:500 12px 'DM Sans',sans-serif}
+.dae-month-week-picker-note{grid-column:1/-1}
 .dae-strategy-form>label{display:grid;gap:7px;color:#d6d9cf;font-size:11px;font-weight:600}
 .dae-strategy-form>label select{height:40px;padding:0 11px;border:1px solid #34392f;border-radius:8px;background:#111410;color:#edf0e7;font:500 12px 'DM Sans',sans-serif}
 .dae-strategy-rows{padding:15px;border:1px solid #34392f;border-radius:10px;background:#151812}

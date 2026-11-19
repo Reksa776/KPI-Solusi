@@ -42,7 +42,7 @@ export default async function PublicClientOverviewPage({ searchParams }: { searc
   });
   const requestedClientId = Number(query.client), requestedDmId = Number(query.dm);
   const active = clients.find(client => client.id === requestedClientId && client.dmId === requestedDmId) ?? clients[0];
-  return <PublicPerformanceShell active="client" eyebrow={`Overview Client · ${month}`} title="Overview Client" description="Pilih client untuk melihat nama DM, grafik, dan rekap performa Minggu 1–5 (tanggal 1–7, 8–14, dan seterusnya).">
+  return <PublicPerformanceShell active="client" eyebrow={`Overview Client · ${month}`} title="Overview Client" description="Pilih client untuk melihat nama DM, grafik, dan rekap performa mingguan mengikuti kalender Senin–Minggu.">
     <div className="public-client-overview-filters"><form action="/performa/client" method="get">{active && <><input type="hidden" name="dm" value={active.dmId}/><input type="hidden" name="client" value={active.id}/></>}<label>Periode laporan<input type="month" name="month" defaultValue={month}/></label><button type="submit">Tampilkan</button></form><div><small>Nama DM</small><b>{active?.dmName ?? "Belum ada data"}</b></div></div>
     <DmClientOverview publicMode month={month} dmId={active?.dmId ?? null} clientId={active?.id ?? null} clients={clients} dmName={active?.dmName ?? "Belum ada DM"}/>
   </PublicPerformanceShell>;
