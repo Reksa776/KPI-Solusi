@@ -1969,3 +1969,6 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dm-target-status.all-met{border-color:#384a3b;background:#1d2721;color:#95c8a9}
 @media(max-width:950px){.dae-kpi-shell .dae-overview-grid{grid-template-columns:minmax(0,1fr)}.dae-kpi-shell .dae-overview-grid>.dm-content-target-panel{grid-column:auto}}
 @media(max-width:520px){.dm-growth-cards{gap:6px}.dm-growth-card{padding:8px}.dm-growth-card>strong{font-size:16px}.dm-growth-card>span,.dm-growth-change{font-size:10px}.dm-growth-change em{display:block}}
+.dm-target-overall-status{display:flex;align-items:center;gap:6px;margin:10px 0 0;padding:10px 12px;border:1px solid #384a3b;border-radius:8px;background:#1d2721;color:#95c8a9;font-size:12px;line-height:1.4}
+.dm-target-overall-status.needs-attention{border-color:#62473a;background:#2a211c;color:#e9a083}
+.dm-target-overall-status.has-excess{border-color:#4d5734;background:#24291d;color:#c5d975}
