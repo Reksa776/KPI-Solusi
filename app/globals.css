@@ -1936,3 +1936,19 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dm-content-target-compact .dm-target-overview-table td>b{margin-right:4px;font-size:13px}
 .dm-content-target-compact .dm-target-overview-table td>small{margin-top:4px;font-size:10px;line-height:1.35}
 @media(max-width:700px){.dm-content-target-compact{padding:12px}.dm-content-target-compact .dae-panel-heading h2{font-size:15px}.dm-content-target-compact .dm-target-overview-table{min-width:570px}.dm-content-target-compact .dm-target-overview-table th,.dm-content-target-compact .dm-target-overview-table td{padding:9px 10px;font-size:11px}}
+
+/* Improve readability of both DM performance charts. */
+.dae-kpi-shell .dae-trend-panel .dae-panel-heading>div>span{font-size:13px}
+.dae-kpi-shell .dae-trend-panel .dm-chart-date-select{font-size:14px}
+.dae-kpi-shell .dae-trend-panel .dm-chart-date-select select{font-size:14px}
+.dae-kpi-shell .dae-trend-panel .dae-chart-wrap svg text{font-size:14px}
+.dae-kpi-shell .dae-trend-panel .dae-chart-legend{font-size:14px;line-height:1.5}
+.dae-kpi-shell .dae-trend-panel .dm-chart-summary{font-size:15px;line-height:1.55}
+.dae-kpi-shell .dm-period-comparison-heading{font-size:13px}
+.dae-kpi-shell .dm-period-comparison-heading small{font-size:13px}
+@media(max-width:700px){
+  .dae-kpi-shell .dae-trend-panel .dae-chart-wrap svg text{font-size:12px}
+  .dae-kpi-shell .dae-trend-panel .dae-chart-legend{font-size:13px}
+  .dae-kpi-shell .dae-trend-panel .dm-chart-summary{font-size:14px}
+  .dae-kpi-shell .dm-period-comparison-heading,.dae-kpi-shell .dm-period-comparison-heading small{font-size:12px}
+}
