@@ -1820,6 +1820,11 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dm-client-table td small{font-size:11px}
 .dm-performance-table .dae-grade{font-size:10px;padding:3px 6px;line-height:1.1}
 .dm-chart-summary{margin:10px 0;padding:11px 13px;border:1px solid #3a4430;border-radius:8px;background:#202519;color:#e4e8da;font-size:13px;font-weight:650;line-height:1.5}
+.dm-period-comparison{margin-top:14px;padding-top:12px;border-top:1px solid #2d322a}
+.dm-period-comparison-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#aeb3a6;font-size:11px;font-weight:700;letter-spacing:.04em}
+.dm-period-comparison-heading small{color:#82897c;font-size:11px;font-weight:500;letter-spacing:0}
+.dm-period-comparison-chart{height:160px;margin-top:8px}
+.dm-period-comparison .dm-chart-summary{margin-bottom:0}
 .dm-range-filter{display:grid;gap:7px}
 .dm-range-filter>label{color:#c6cabe;font-size:11px;font-weight:650}
 .dm-range-controls{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}
