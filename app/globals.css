@@ -1952,3 +1952,20 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
   .dae-kpi-shell .dae-trend-panel .dm-chart-summary{font-size:14px}
   .dae-kpi-shell .dm-period-comparison-heading,.dae-kpi-shell .dm-period-comparison-heading small{font-size:12px}
 }
+
+/* DM overview additions: comparison cards, paired target statuses, and requested panel placement. */
+.dae-kpi-shell .dae-overview-grid>.dm-summary-weekly-stack{display:grid;align-content:start;gap:13px;min-width:0}
+.dae-kpi-shell .dae-overview-grid>.dm-content-target-panel{grid-column:auto}
+.dm-growth-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:2px 0 12px}
+.dm-growth-card{display:grid;gap:5px;min-width:0;padding:11px 12px;border:1px solid #30362b;border-radius:9px;background:#1b1f19}
+.dm-growth-card>span{color:#aeb3a6;font-size:11px;font-weight:600}
+.dm-growth-card>strong{overflow:hidden;color:#f1f3ec;font:700 20px 'Manrope',sans-serif;text-overflow:ellipsis;white-space:nowrap}
+.dm-growth-change{color:#aeb3a6;font-size:11px;font-weight:700}
+.dm-growth-change em{color:#858d7e;font-size:9px;font-style:normal;font-weight:500}
+.dm-growth-change.up{color:#a9d65d}.dm-growth-change.down{color:#e0a18a}.dm-growth-change.new{color:#d2fb07}
+.dm-target-status{display:inline-block;max-width:170px;padding:5px 8px;border:1px solid #3a4033;border-radius:7px;color:#c6cabe;font-size:11px;font-weight:650;line-height:1.3}
+.dm-target-status.needs-attention{border-color:#62473a;background:#2a211c;color:#e9a083}
+.dm-target-status.has-excess{border-color:#4d5734;background:#24291d;color:#c5d975}
+.dm-target-status.all-met{border-color:#384a3b;background:#1d2721;color:#95c8a9}
+@media(max-width:950px){.dae-kpi-shell .dae-overview-grid{grid-template-columns:minmax(0,1fr)}.dae-kpi-shell .dae-overview-grid>.dm-content-target-panel{grid-column:auto}}
+@media(max-width:520px){.dm-growth-cards{gap:6px}.dm-growth-card{padding:8px}.dm-growth-card>strong{font-size:16px}.dm-growth-card>span,.dm-growth-change{font-size:10px}.dm-growth-change em{display:block}}
