@@ -1972,3 +1972,6 @@ body:has(.public-performance)>.page-entrance>.footer{display:none}
 .dm-target-overall-status{display:flex;align-items:center;gap:6px;margin:10px 0 0;padding:10px 12px;border:1px solid #384a3b;border-radius:8px;background:#1d2721;color:#95c8a9;font-size:12px;line-height:1.4}
 .dm-target-overall-status.needs-attention{border-color:#62473a;background:#2a211c;color:#e9a083}
 .dm-target-overall-status.has-excess{border-color:#4d5734;background:#24291d;color:#c5d975}
+.dm-growth-cards{grid-template-columns:repeat(4,minmax(0,1fr))}
+.dm-chart-legend-three span:nth-child(4) i{background:#5599c2}
+@media(max-width:520px){.dm-growth-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
